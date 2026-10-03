@@ -1,0 +1,6 @@
+# The print sheet carries the code, and these hold the list unencrypted.
+*.pdf
+songs*.json
+Songlist*.txt
+private/
+__pycache__/

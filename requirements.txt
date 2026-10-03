@@ -1,0 +1,3 @@
+cryptography>=42
+rapidfuzz>=3
+reportlab>=4
