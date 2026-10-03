@@ -1,11 +1,11 @@
-# Karaoke songbook
+# Mad Dog Karaoke songbook
 
-The venue's song list on a phone. Guests scan the QR code on the table sheet,
+The song list on a phone. Guests scan the QR code on the table sheet,
 type the 6-digit code printed under it, and can then search every song by title
 or artist, browse A–Z by song or by artist, and narrow it down by genre and
 decade.
 
-Site: <https://surrealsucculents.github.io/karaoke-songbook/>
+Site: <https://maddogkaraoke.co.uk/>
 
 ## How the code protects the list
 
@@ -28,6 +28,12 @@ pip install -r requirements.txt
 Turn on GitHub Pages once: **Settings → Pages → Build and deployment →
 Deploy from a branch → `main` / `(root)`**. Every push to `main` then goes live
 within a minute or two.
+
+The site is served on `maddogkaraoke.co.uk` (the `CNAME` file). At the domain's
+DNS (GoDaddy), the bare domain `@` has four A records — `185.199.108.153`,
+`185.199.109.153`, `185.199.110.153`, `185.199.111.153` — and `www` is a CNAME
+to `surrealsucculents.github.io`. With **Enforce HTTPS** ticked in the Pages
+settings, GitHub issues and renews the certificate itself.
 
 ## Print the sheet
 

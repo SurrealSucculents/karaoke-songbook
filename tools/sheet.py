@@ -17,7 +17,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
-URL = "https://surrealsucculents.github.io/karaoke-songbook/"
+URL = "https://maddogkaraoke.co.uk/"
+NAME = "Mad Dog Karaoke"
 INK = HexColor("#150C24")
 DIM = HexColor("#5E5470")
 FAINT = HexColor("#9B8FB0")
@@ -69,10 +70,10 @@ def short(url):
     return re.sub(r"^https?://", "", url).rstrip("/")
 
 
-def poster(c, code, url):
+def poster(c, code, url, name):
     W, H = A4
     cx = W / 2
-    centred(c, "KARAOKE", H - 30 * mm, "Helvetica-Bold", 11, FAINT, spacing=3.2)
+    centred(c, name.upper(), H - 30 * mm, "Helvetica-Bold", 11, FAINT, spacing=3.2)
     c.setFillColor(ACCENT)
     c.rect(cx - 9 * mm, H - 35 * mm, 18 * mm, 1.1 * mm, stroke=0, fill=1)
     centred(c, "Find your song", H - 56 * mm, "Helvetica-Bold", 46)
@@ -91,7 +92,7 @@ def poster(c, code, url):
     centred(c, "Found your song? Let the host know.", 15 * mm, "Helvetica", 11, FAINT)
 
 
-def cards(c, code, url):
+def cards(c, code, url, name):
     W, H = A4
     cw, ch = W / 2, H / 2
     c.setDash(3, 4)
@@ -104,7 +105,7 @@ def cards(c, code, url):
         for row in range(2):
             x0, y0 = col * cw, row * ch
             cx = x0 + cw / 2
-            centred(c, "KARAOKE", y0 + ch - 14 * mm, "Helvetica-Bold", 8, FAINT, cx=cx, spacing=2.2)
+            centred(c, name.upper(), y0 + ch - 14 * mm, "Helvetica-Bold", 8, FAINT, cx=cx, spacing=2.2)
             centred(c, "Find your song", y0 + ch - 24 * mm, "Helvetica-Bold", 21, cx=cx)
             centred(c, "Scan, then enter the code", y0 + ch - 31 * mm, "Helvetica", 10.5, DIM, cx=cx)
             size = 62 * mm
@@ -117,16 +118,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--code", required=True)
     ap.add_argument("--url", default=URL)
+    ap.add_argument("--name", default=NAME)
     ap.add_argument("--out", default="songbook-sheet.pdf")
     args = ap.parse_args()
     if not re.fullmatch(r"\d{6}", args.code):
         sys.exit("The code must be exactly 6 digits.")
     c = canvas.Canvas(args.out, pagesize=A4)
-    c.setTitle("Karaoke songbook - scan to browse")
-    c.setAuthor("Songbook")
-    poster(c, args.code, args.url)
+    c.setTitle(f"{args.name} songbook - scan to browse")
+    c.setAuthor(args.name)
+    poster(c, args.code, args.url, args.name)
     c.showPage()
-    cards(c, args.code, args.url)
+    cards(c, args.code, args.url, args.name)
     c.showPage()
     c.save()
     print(f"wrote {args.out}")
