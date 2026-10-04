@@ -171,6 +171,7 @@
       <div class="filters">
         <button type="button" id="fGenre" aria-haspopup="dialog">Genre<span class="caret">▾</span></button>
         <button type="button" id="fDecade" aria-haspopup="dialog">Decade<span class="caret">▾</span></button>
+        <button type="button" id="fVoice" aria-haspopup="dialog" hidden>Singer<span class="caret">▾</span></button>
         <button type="button" class="clear" id="fClear" hidden>Clear</button>
       </div>
       <div class="eyebrow" id="summary" aria-live="polite"></div>
@@ -315,7 +316,8 @@ gateForm.addEventListener("submit", e => {
 /* ================================================================ app */
 
 let SONGS = [], ARTISTS = [], GENRES = [];
-const state = {tab: "songs", q: "", genres: new Set(), decades: new Set()};
+const VOICES = ["Male", "Female", "Duet"];
+const state = {tab: "songs", q: "", genres: new Set(), decades: new Set(), voices: new Set()};
 let view = [];   // what the list is showing right now
 
 function start(data) {
@@ -325,11 +327,15 @@ function start(data) {
     return {i, name, k, letter: letterOf(k), songs: []};
   });
   SONGS = data.s.map((r, i) => {
-    const [t, ai, y, g, credit] = r;
+    // v2 rows: [title, artist, year, genre, voice, credit?]; v1 rows had the credit in slot 4.
+    const v2 = (data.v || 1) >= 2;
+    const [t, ai, y, g] = r;
+    const credit = v2 ? r[5] : r[4];
+    const v = v2 && r[4] > 0 ? r[4] - 1 : -1;
     const artist = ARTISTS[ai];
     const by = credit || artist.name;
     const ft = fold(t);
-    const s = {i, t, by, artist, y, g, ft, fa: fold(by), letter: letterOf(ft),
+    const s = {i, t, by, artist, y, g, v, ft, fa: fold(by), letter: letterOf(ft),
                dec: y ? DECADES.findIndex(d => d.test(y)) : -1};
     artist.songs.push(s);
     return s;
@@ -339,6 +345,7 @@ function start(data) {
     for (const s of a.songs) if (s.g >= 0) c.set(s.g, (c.get(s.g) || 0) + 1);
     a.genre = [...c].sort((x, y) => y[1] - x[1])[0]?.[0] ?? -1;
   }
+  $("fVoice").hidden = !SONGS.some(s => s.v >= 0);
   $("total").textContent = plural(SONGS.length, "song", "songs");
   $("gate").hidden = true;
   $("app").hidden = false;
@@ -347,9 +354,12 @@ function start(data) {
   refresh();
 }
 
+function anyFilter() { return state.genres.size || state.decades.size || state.voices.size; }
+
 function passes(s) {
   if (state.genres.size && !state.genres.has(s.g)) return false;
   if (state.decades.size && !state.decades.has(s.dec)) return false;
+  if (state.voices.size && !state.voices.has(s.v)) return false;
   return true;
 }
 
@@ -392,7 +402,7 @@ function compute() {
   for (const a of ARTISTS) {
     const score = m ? m.artist(a) : 0;
     if (score < 0) continue;
-    const n = (state.genres.size || state.decades.size) ? a.songs.filter(passes).length : a.songs.length;
+    const n = anyFilter() ? a.songs.filter(passes).length : a.songs.length;
     if (n) out.push([score, {a, n}]);
   }
   if (m) out.sort((x, y) => x[0] - y[0] || x[1].a.i - y[1].a.i);
@@ -407,7 +417,7 @@ let pool = new Map();   // position -> element
 
 function refresh(keepScroll) {
   view = compute();
-  const filtered = state.genres.size || state.decades.size;
+  const filtered = anyFilter();
   const noun = state.tab === "songs" ? ["song", "songs"] : ["artist", "artists"];
   let summary = plural(view.length, ...noun);
   if (state.q.trim()) summary += ` for “${state.q.trim()}”`;
@@ -416,10 +426,11 @@ function refresh(keepScroll) {
   $("fClear").hidden = !filtered;
   label($("fGenre"), "Genre", [...state.genres].map(g => GENRES[g]));
   label($("fDecade"), "Decade", [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
+  label($("fVoice"), "Singer", [...VOICES.keys()].filter(v => state.voices.has(v)).map(v => VOICES[v]));
   $("empty").hidden = view.length > 0;
   $("emptyWhy").textContent = state.q.trim()
     ? "Try a different spelling, or just part of the title."
-    : "Nothing in that genre and decade together. Try fewer filters.";
+    : "Nothing matches those filters together. Try fewer filters.";
   list.style.height = view.length * ROW + "px";
   for (const el of pool.values()) el.remove();
   pool.clear();
@@ -541,8 +552,8 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   refresh();
 });
 
-$("fClear").onclick = () => { state.genres.clear(); state.decades.clear(); refresh(); };
-$("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); q.value = ""; state.q = ""; refresh(); };
+$("fClear").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); refresh(); };
+$("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); q.value = ""; state.q = ""; refresh(); };
 $("forget").onclick = () => { store.clear(); location.reload(); };
 
 /* ---------------------------------------------------------------- sheets */
@@ -577,20 +588,22 @@ function countBy(fn, size) {
 }
 
 function pickerSheet(kind) {
-  const isGenre = kind === "genre";
-  const set = isGenre ? state.genres : state.decades;
-  const names = isGenre ? GENRES : DECADES.map(d => d.label);
-  // Counts honour the other filter, so each chip says what tapping it would give.
+  const isGenre = kind === "genre", isVoice = kind === "voice";
+  const set = isGenre ? state.genres : isVoice ? state.voices : state.decades;
+  const names = isGenre ? GENRES : isVoice ? VOICES : DECADES.map(d => d.label);
+  // Counts honour the other filters, so each chip says what tapping it would give.
   const counts = countBy(s => {
-    if (isGenre) return (!state.decades.size || state.decades.has(s.dec)) ? s.g : -1;
-    return (!state.genres.size || state.genres.has(s.g)) ? s.dec : -1;
+    if (isGenre && (state.decades.size && !state.decades.has(s.dec) || state.voices.size && !state.voices.has(s.v))) return -1;
+    if (isVoice && (state.genres.size && !state.genres.has(s.g) || state.decades.size && !state.decades.has(s.dec))) return -1;
+    if (kind === "decade" && (state.genres.size && !state.genres.has(s.g) || state.voices.size && !state.voices.has(s.v))) return -1;
+    return isGenre ? s.g : isVoice ? s.v : s.dec;
   }, names.length);
   const order = isGenre ? [...names.keys()].sort((a, b) => counts[b] - counts[a]) : [...names.keys()];
   const draft = new Set(set);
   const chips = order.map(i => `<button type="button" class="chip${draft.has(i) ? " on" : ""}" data-i="${i}"` +
     `${counts[i] ? "" : " disabled"} aria-pressed="${draft.has(i)}">${esc(names[i])}<i>${fmt(counts[i])}</i></button>`).join("");
   openSheet(`
-    <h2>${isGenre ? "Pick genres" : "Pick decades"}</h2>
+    <h2>${isGenre ? "Pick genres" : isVoice ? "Pick singer type" : "Pick decades"}</h2>
     <p class="sub">Pick as many as you like.</p>
     <div class="chips">${chips}</div>
     <div class="acts"><button type="button" class="quiet" data-act="none">Clear</button>
@@ -622,11 +635,13 @@ function pickerSheet(kind) {
 }
 $("fGenre").onclick = () => pickerSheet("genre");
 $("fDecade").onclick = () => pickerSheet("decade");
+$("fVoice").onclick = () => pickerSheet("voice");
 
 function songSheet(s, onArtistPage) {
   const facts = [];
   if (s.y) facts.push(`<span class="fact">Released <b>${s.y}</b></span>`);
   if (s.g >= 0) facts.push(`<span class="fact">${esc(GENRES[s.g])}</span>`);
+  if (s.v >= 0) facts.push(`<span class="fact">${esc(VOICES[s.v])}</span>`);
   const all = onArtistPage ? 0 : s.artist.songs.length;
   openSheet(`
     <h2>${esc(s.t)}</h2>
