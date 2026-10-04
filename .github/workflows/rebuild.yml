@@ -1,0 +1,49 @@
+name: Rebuild the songbook
+
+# Drop the KJ software's export into import/ and push to main. This rebuilds
+# songbook.bin from it, commits the result and removes the export.
+on:
+  push:
+    branches: [main]
+    paths: ["import/*.txt"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: rebuild
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Rebuild songbook.bin
+        run: |
+          shopt -s nullglob
+          files=(import/*.txt)
+          if [ ${#files[@]} -eq 0 ]; then echo "No export in import/, nothing to do."; exit 0; fi
+          track=() ; artist=()
+          for f in "${files[@]}"; do
+            case "$(basename "$f" | tr A-Z a-z)" in
+              *artist*) artist=(--artist "$f") ;;
+              *) track=(--track "$f") ;;
+            esac
+          done
+          code=$(grep -oP 'const CODE = "\K\d{6}' index.html)
+          python3 tools/build.py update --code "$code" "${track[@]}" "${artist[@]}"
+          git rm -q --cached "${files[@]}" 2>/dev/null || true
+          rm -f "${files[@]}"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A songbook.bin import
+          git diff --cached --quiet && { echo "Nothing changed."; exit 0; }
+          git commit -m "Update the song list"
+          git push

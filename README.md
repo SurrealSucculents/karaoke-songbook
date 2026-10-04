@@ -62,6 +62,12 @@ together.
 
 ## Load a new export from the KJ software
 
+Put the export (e.g. `Songlist-fulltrack.txt`) in the `import/` folder and push
+it to `main` (on GitHub: **Add file → Upload files**, into `import/`). The
+**Rebuild the songbook** workflow rebuilds `songbook.bin`, commits it and removes
+the export. The list is public, so the export being in the commit history is
+fine. To do it by hand instead:
+
 ```sh
 python3 tools/build.py update --code 123456 --track Songlist-fulltrack.txt
 git commit -am "Update the song list" && git push
