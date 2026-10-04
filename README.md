@@ -1,23 +1,22 @@
 # Mad Dog Karaoke songbook
 
 The song list on a phone. Guests scan the QR code on the table sheet,
-type the 6-digit code printed under it, and can then search every song by title
-or artist, browse A–Z by song or by artist, and narrow it down by genre and
+and can then search every song by title or artist, browse A–Z by song or by artist, and narrow it down by genre and
 decade.
 
 Site: <https://maddogkaraoke.co.uk/>
 
-## How the code protects the list
+## How the list is stored
 
 The list is never in this repo or on the site in readable form. `songbook.bin`
 is the list gzipped and encrypted with AES-256-GCM, under a key derived from
-the 6-digit code with PBKDF2-SHA256 (310,000 rounds). The page decrypts it in
-the browser once the right code is typed, and remembers the code on that phone
-until the code is changed or someone taps "Forget the code on this phone".
+a 6-digit code with PBKDF2-SHA256 (310,000 rounds). Guests are not asked for the
+code: it is built into `index.html` (`CODE`), and the page decrypts the list in
+the browser as it loads.
 
-A 6-digit code keeps out anyone who only has the link. It won't stop someone
-determined to brute-force the file, and anyone with the code can read the list.
-Change the code whenever you like (below) and reprint the sheet.
+That keeps the list out of the repo as plain text, but anyone who views the
+page source can find the code and read the list. If you change the code
+(below), update `CODE` in `index.html` too.
 
 ## Setup
 
@@ -38,29 +37,28 @@ settings, GitHub issues and renews the certificate itself.
 ## Print the sheet
 
 ```sh
-python3 tools/sheet.py --code 123456 --out songbook-sheet.pdf
+python3 tools/sheet.py --out songbook-sheet.pdf
 ```
 
-Page 1 is an A4 poster. Page 2 is four A6 table cards to cut out. The PDF has
-the code on it, so `.gitignore` keeps PDFs out of the repo.
+Page 1 is an A4 poster. Page 2 is four A6 table cards to cut out.
+`.gitignore` keeps PDFs out of the repo.
 
 To add a second QR code that joins the venue's Wi-Fi (handy where phone signal
 is poor), pass the network and password. They go on the printout only and are
 never saved in the repo:
 
 ```sh
-python3 tools/sheet.py --code 123456 --wifi-name "Venue Guest" --wifi-password secret
+python3 tools/sheet.py --wifi-name "Venue Guest" --wifi-password secret
 ```
 
 ## Change the code
 
 ```sh
 python3 tools/build.py rekey --old-code 123456 --code 654321
-git commit -am "Change the songbook code" && git push
-python3 tools/sheet.py --code 654321
 ```
 
-Phones that remembered the old code are asked for the new one.
+Then set `CODE` in `index.html` to the new code, and commit and push both files
+together.
 
 ## Load a new export from the KJ software
 

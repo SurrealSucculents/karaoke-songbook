@@ -67,27 +67,32 @@ def artist_sort_key(s):
 # ---------------------------------------------------------------- payload
 
 def pack(songs):
-    """[{t, a, p, y, g}] -> compact JSON the page reads."""
+    """[{t, a, p, y, g, v}] -> compact JSON the page reads.
+
+    v is the singer type: 0 unknown, 1 male, 2 female, 3 duet.
+    """
     artists = sorted({s["p"] for s in songs}, key=lambda a: (artist_sort_key(a), a))
     index = {a: i for i, a in enumerate(artists)}
     rows = []
     for s in sorted(songs, key=lambda s: (sort_key(s["t"]), artist_sort_key(s["p"]))):
         g = GENRES.index(s["g"]) if s.get("g") in GENRES else -1
-        row = [s["t"], index[s["p"]], int(s.get("y") or 0), g]
+        row = [s["t"], index[s["p"]], int(s.get("y") or 0), g, int(s.get("v") or 0)]
         if s["a"] != s["p"]:
             row.append(s["a"])
         rows.append(row)
-    return {"v": 1, "g": GENRES, "a": artists, "s": rows}
+    return {"v": 2, "g": GENRES, "a": artists, "s": rows}
 
 
 def unpack(payload):
     artists, genres = payload["a"], payload["g"]
     songs = []
+    v2 = payload.get("v", 1) >= 2
     for row in payload["s"]:
         t, ai, y, g = row[:4]
         p = artists[ai]
-        songs.append({"t": t, "p": p, "a": row[4] if len(row) > 4 else p,
-                      "y": y or None, "g": genres[g] if g >= 0 else None})
+        v, credit = (row[4], row[5] if len(row) > 5 else p) if v2 else (0, row[4] if len(row) > 4 else p)
+        songs.append({"t": t, "p": p, "a": credit, "y": y or None,
+                      "g": genres[g] if g >= 0 else None, "v": v})
     return songs
 
 
@@ -143,7 +148,9 @@ def cmd_update(args):
         old = known.get((clean.title_key(s["t"]), clean.key(s["p"]))) or known.get((s["tk"], clean.key(s["p"])))
         y, g = (old["y"], old["g"]) if old else (None, None)
         missing += old is None
-        songs.append({"t": s["t"], "a": s["a"], "p": s["p"], "y": y, "g": g})
+        # A tag in the fresh title wins; otherwise keep what was known.
+        v = s.get("v") or (old.get("v", 0) if old else 0)
+        songs.append({"t": s["t"], "a": s["a"], "p": s["p"], "y": y, "g": g, "v": v})
     print(f"{len(songs)} songs, {missing} new since the last build (no decade or genre yet)")
     lock(songs, code)
 

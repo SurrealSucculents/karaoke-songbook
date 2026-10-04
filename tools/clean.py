@@ -86,6 +86,24 @@ PRODUCTION = re.compile(r"""
 """, re.I | re.X)
 
 
+# Singer type, read off the raw title before the tag is stripped:
+# 1 male, 2 female, 3 duet. 0 means the title doesn't say.
+VOICE_DUET = re.compile(r"\bduet\b|\bduo\b", re.I)
+VOICE_MALE = re.compile(r"(?<![a-z])male\b|\bmale\s+(key|vocal|version)", re.I)
+
+
+def voice_of(title):
+    tags = " ".join(re.findall(r"[\(\[]([^\)\]]*)", title))
+    tags += " " + (re.search(r"\s-\s+(.*)$", title) or [None, ""])[1]
+    if VOICE_DUET.search(tags):
+        return 3
+    if re.search(r"\bfemale\b", tags, re.I):
+        return 2
+    if VOICE_MALE.search(tags):
+        return 1
+    return 0
+
+
 def strip_tags(title):
     def drop(m):
         inner = m.group(1)
@@ -261,7 +279,7 @@ def best_title(titles, words):
     return max(c, key=score)
 
 
-def merge_typos(groups, words, log):
+def merge_typos(groups, words, log, group_voice):
     """Same act, nearly the same title: one is a typo or a dropped word.
 
     "Can't Help Faling In Love" / "Falling", "Horse With No Name" / "A Horse...",
@@ -299,14 +317,22 @@ def merge_typos(groups, words, log):
                     continue
                 print(f"  title   {tb!r} -> {ta!r}", file=log)
                 groups[keep] += groups.pop(other)
+                group_voice[keep] |= group_voice.pop(other, set())
 
 
 def clean(rows, log=sys.stderr):
     rows = [(tidy(t), tidy(a)) for t, a in rows]
     rows = repair_split_hyphens(rows)
-    rows = [(the_to_front(strip_tags(t)), the_to_front(a)) for t, a in rows]
-    rows = [(fix_shouting(t), fix_shouting(a)) for t, a in rows if t and a and key(a) not in JUNK_ARTISTS]
-    rows = [(TITLES.get(t, t), a) for t, a in rows]
+    raw_voice = {}
+    for t, a in rows:
+        v = voice_of(t)
+        if v:
+            raw_voice[(t, a)] = v
+    rows3 = [(the_to_front(strip_tags(t)), the_to_front(a), raw_voice.get((t, a), 0)) for t, a in rows]
+    rows3 = [(fix_shouting(t), fix_shouting(a), v) for t, a, v in rows3
+             if t and a and key(a) not in JUNK_ARTISTS]
+    rows3 = [(TITLES.get(t, t), a, v) for t, a, v in rows3]
+    rows = [(t, a) for t, a, _ in rows3]
 
     # --- artists: one spelling per act ---------------------------------
     by_key = collections.defaultdict(list)
@@ -343,10 +369,13 @@ def clean(rows, log=sys.stderr):
 
     # --- songs: one row per title per act ------------------------------
     groups = collections.defaultdict(list)
-    for t, a in rows:
+    group_voice = collections.defaultdict(set)
+    for t, a, v in rows3:
         groups[(title_key(t), akey(a))].append((t, a))
+        if v:
+            group_voice[(title_key(t), akey(a))].add(v)
     words = collections.Counter(w for t, _ in rows for w in key(t).split())
-    merge_typos(groups, words, log)
+    merge_typos(groups, words, log, group_voice)
 
     songs = []
     for (tk, ak), members in groups.items():
@@ -363,7 +392,10 @@ def clean(rows, log=sys.stderr):
             if joiner.lower().startswith(("ft", "featuring", "feat")):
                 joiner = "feat."
             credit = f"{lead} {joiner} {best[m.end():]}"
-        songs.append({"t": title, "a": rename(lead, tidy(credit)), "p": rename(lead), "ak": ak, "tk": tk})
+        vs = group_voice.get((tk, ak), set())
+        # Duet wins; a title tagged both male and female is a duet too.
+        v = 3 if 3 in vs or {1, 2} <= vs else (min(vs) if vs else 0)
+        songs.append({"t": title, "a": rename(lead, tidy(credit)), "p": rename(lead), "ak": ak, "tk": tk, "v": v})
 
     # A rename can land two acts on one name ("Medley & Warnes"): one row each song.
     seen, unique = set(), []
