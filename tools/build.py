@@ -8,6 +8,7 @@ plain: the page loads it directly, and every command here reads and writes it.
     python3 tools/build.py update --track Songlist-fulltrack.txt
 
     # Fill singer type from tools/artist_voices.json for songs that have none
+    # (--reset first clears every song's type, including any from export titles)
     python3 tools/build.py voices
 
     # Get the list out as plain songs, to check or hand-edit it
@@ -116,6 +117,8 @@ def cmd_voices(args):
     songs = load_list()
     n = 0
     for s in songs:
+        if args.reset:
+            s["v"] = 0
         if not s.get("v") and by_artist.get(clean.key(s["p"])):
             s["v"] = by_artist[clean.key(s["p"])]
             n += 1
@@ -148,7 +151,8 @@ def main():
     p.set_defaults(run=cmd_pack)
     p = sub.add_parser("export"); p.add_argument("--out", required=True)
     p.set_defaults(run=cmd_export)
-    p = sub.add_parser("voices"); p.set_defaults(run=cmd_voices)
+    p = sub.add_parser("voices"); p.add_argument("--reset", action="store_true")
+    p.set_defaults(run=cmd_voices)
     p = sub.add_parser("update")
     p.add_argument("--track"); p.add_argument("--artist")
     p.set_defaults(run=cmd_update)
