@@ -82,6 +82,17 @@ python3 tools/build.py pack --songs songs.json
 
 `songs.json` is only a working copy, so it's in `.gitignore`.
 
+## Singer filter
+
+Each song has a singer type: male, female or duet. It comes from, in order: a
+"(Duet)", "(Male)" or "(Female)" tag in the title of the KJ export, what the
+list already had, and `tools/artist_voices.json`, a lookup of acts that are
+male (`m`), female (`f`) or a male and female duo (`d`). Acts that aren't listed
+there (mixed bands, medleys, anything unsure) have no singer type. The lookup
+was filled in from general knowledge, so correct it where it's wrong, then run
+`python3 tools/build.py voices` to apply it to songs that have no type yet. To
+change a song that already has one, use `export` / `pack`, as above.
+
 ## Files
 
 | | |
@@ -90,4 +101,5 @@ python3 tools/build.py pack --songs songs.json
 | `songbook.json` | the song list |
 | `tools/clean.py` | turns a raw export into a clean, de-duplicated list |
 | `tools/build.py` | update / export / pack `songbook.json` |
+| `tools/artist_voices.json` | singer type per act, for the Singer filter |
 | `tools/sheet.py` | the printable QR sheet |
