@@ -44,6 +44,14 @@ python3 tools/sheet.py --code 123456 --out songbook-sheet.pdf
 Page 1 is an A4 poster. Page 2 is four A6 table cards to cut out. The PDF has
 the code on it, so `.gitignore` keeps PDFs out of the repo.
 
+To add a second QR code that joins the venue's Wi-Fi (handy where phone signal
+is poor), pass the network and password. They go on the printout only and are
+never saved in the repo:
+
+```sh
+python3 tools/sheet.py --code 123456 --wifi-name "Venue Guest" --wifi-password secret
+```
+
 ## Change the code
 
 ```sh
