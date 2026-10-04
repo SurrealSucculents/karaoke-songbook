@@ -7,6 +7,9 @@ plain: the page loads it directly, and every command here reads and writes it.
     # genre already known, rewrite songbook.json
     python3 tools/build.py update --track Songlist-fulltrack.txt
 
+    # Fill singer type from tools/artist_voices.json for songs that have none
+    python3 tools/build.py voices
+
     # Get the list out as plain songs, to check or hand-edit it
     python3 tools/build.py export --out songs.json
 
@@ -24,6 +27,8 @@ import clean  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIST = os.path.join(ROOT, "songbook.json")
+VOICES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artist_voices.json")
+VOICE_CODES = {"m": 1, "f": 2, "d": 3}
 
 GENRES = ["Pop", "Rock", "Indie & Alternative", "Dance", "R&B & Soul", "Hip-Hop & Rap",
           "Country", "Musicals & Film", "Christmas", "Swing & Easy Listening",
@@ -72,6 +77,14 @@ def unpack(payload):
     return songs
 
 
+def artist_voices():
+    """Singer type per act (m/f/d), by clean.key of the lead artist's name."""
+    if not os.path.exists(VOICES):
+        return {}
+    with open(VOICES, encoding="utf-8") as f:
+        return {clean.key(a): VOICE_CODES[c] for a, c in json.load(f).items() if c in VOICE_CODES}
+
+
 def save(songs):
     with open(LIST, "w", encoding="utf-8") as f:
         json.dump(pack(songs), f, ensure_ascii=False, separators=(",", ":"))
@@ -98,7 +111,20 @@ def cmd_export(args):
     print(f"wrote {len(songs)} songs to {args.out}")
 
 
+def cmd_voices(args):
+    by_artist = artist_voices()
+    songs = load_list()
+    n = 0
+    for s in songs:
+        if not s.get("v") and by_artist.get(clean.key(s["p"])):
+            s["v"] = by_artist[clean.key(s["p"])]
+            n += 1
+    print(f"{n} songs took their singer type from tools/artist_voices.json")
+    save(songs)
+
+
 def cmd_update(args):
+    by_artist = artist_voices()
     known = {}
     for s in load_list():
         known[(clean.title_key(s["t"]), clean.key(s["p"]))] = s
@@ -108,8 +134,8 @@ def cmd_update(args):
         old = known.get((clean.title_key(s["t"]), clean.key(s["p"]))) or known.get((s["tk"], clean.key(s["p"])))
         y, g = (old["y"], old["g"]) if old else (None, None)
         missing += old is None
-        # A tag in the fresh title wins; otherwise keep what was known.
-        v = s.get("v") or (old.get("v", 0) if old else 0)
+        # A tag in the fresh title wins, then what was known, then the act's own type.
+        v = s.get("v") or (old.get("v", 0) if old else 0) or by_artist.get(clean.key(s["p"]), 0)
         songs.append({"t": s["t"], "a": s["a"], "p": s["p"], "y": y, "g": g, "v": v})
     print(f"{len(songs)} songs, {missing} new since the last build (no decade or genre yet)")
     save(songs)
@@ -122,6 +148,7 @@ def main():
     p.set_defaults(run=cmd_pack)
     p = sub.add_parser("export"); p.add_argument("--out", required=True)
     p.set_defaults(run=cmd_export)
+    p = sub.add_parser("voices"); p.set_defaults(run=cmd_voices)
     p = sub.add_parser("update")
     p.add_argument("--track"); p.add_argument("--artist")
     p.set_defaults(run=cmd_update)
