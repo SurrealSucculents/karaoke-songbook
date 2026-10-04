@@ -1,57 +1,33 @@
-"""Lock the song list behind the 6-digit code, and keep it up to date.
+"""Keep the song list up to date.
 
-The site only ever sees songbook.bin: the list gzipped, then encrypted with
-AES-256-GCM under a key stretched from the code with PBKDF2-SHA256. Nobody gets
-the list from the repo or the site without the code on the printed sheet.
-
-    # First build, from a tagged list (title, artist, year, genre per song)
-    python3 tools/build.py lock --code 123456 --songs songs.json
+songbook.json is the list, in the compact form the page reads. It's public and
+plain: the page loads it directly, and every command here reads and writes it.
 
     # The KJ software exported a new list: re-clean it, keep every decade and
-    # genre already known, re-lock with the same code
-    python3 tools/build.py update --code 123456 --track Songlist-fulltrack.txt
+    # genre already known, rewrite songbook.json
+    python3 tools/build.py update --track Songlist-fulltrack.txt
 
-    # New code (then reprint the sheet with tools/sheet.py)
-    python3 tools/build.py rekey --old-code 123456 --code 654321
+    # Get the list out as plain songs, to check or hand-edit it
+    python3 tools/build.py export --out songs.json
 
-    # Get the plain list back out, to check or hand-edit it
-    python3 tools/build.py unlock --code 123456 --out songs.json
+    # Write an edited songs.json back as songbook.json
+    python3 tools/build.py pack --songs songs.json
 """
 import argparse
-import gzip
 import json
 import os
 import re
-import secrets
-import struct
 import sys
-
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 sys.path.insert(0, os.path.dirname(__file__))
 import clean  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BIN = os.path.join(ROOT, "songbook.bin")
-MAGIC = b"SBK1"
-ITERATIONS = 310_000
+LIST = os.path.join(ROOT, "songbook.json")
 
 GENRES = ["Pop", "Rock", "Indie & Alternative", "Dance", "R&B & Soul", "Hip-Hop & Rap",
           "Country", "Musicals & Film", "Christmas", "Swing & Easy Listening",
           "Folk & Irish", "Reggae & Ska", "Latin", "Novelty & Kids"]
-
-
-def check_code(code):
-    if not re.fullmatch(r"\d{6}", code or ""):
-        sys.exit("The code must be exactly 6 digits.")
-    return code
-
-
-def derive(code, salt, iterations):
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=iterations)
-    return kdf.derive(code.encode())
 
 
 def sort_key(s):
@@ -96,51 +72,35 @@ def unpack(payload):
     return songs
 
 
-def lock(songs, code):
-    data = gzip.compress(json.dumps(pack(songs), ensure_ascii=False, separators=(",", ":")).encode(), 9)
-    salt, iv = secrets.token_bytes(16), secrets.token_bytes(12)
-    sealed = AESGCM(derive(code, salt, ITERATIONS)).encrypt(iv, data, MAGIC)
-    with open(BIN, "wb") as f:
-        f.write(MAGIC + struct.pack(">I", ITERATIONS) + salt + iv + sealed)
-    print(f"locked {len(songs)} songs into {os.path.relpath(BIN)} ({os.path.getsize(BIN) // 1024} KB)")
+def save(songs):
+    with open(LIST, "w", encoding="utf-8") as f:
+        json.dump(pack(songs), f, ensure_ascii=False, separators=(",", ":"))
+    print(f"wrote {len(songs)} songs to {os.path.relpath(LIST)} ({os.path.getsize(LIST) // 1024} KB)")
 
 
-def unlock_bin(code):
-    blob = open(BIN, "rb").read()
-    if blob[:4] != MAGIC:
-        sys.exit("songbook.bin is not a songbook file.")
-    iterations = struct.unpack(">I", blob[4:8])[0]
-    salt, iv, sealed = blob[8:24], blob[24:36], blob[36:]
-    try:
-        data = AESGCM(derive(code, salt, iterations)).decrypt(iv, sealed, MAGIC)
-    except Exception:
-        sys.exit("That code does not open songbook.bin.")
-    return unpack(json.loads(gzip.decompress(data)))
+def load_list():
+    with open(LIST, encoding="utf-8") as f:
+        return unpack(json.load(f))
 
 
 # ---------------------------------------------------------------- commands
 
-def cmd_lock(args):
+def cmd_pack(args):
     songs = json.load(open(args.songs))
     for s in songs:
         s.setdefault("a", s["p"])
-    lock(songs, check_code(args.code))
+    save(songs)
 
 
-def cmd_unlock(args):
-    songs = unlock_bin(check_code(args.code))
+def cmd_export(args):
+    songs = load_list()
     json.dump(songs, open(args.out, "w"), ensure_ascii=False, indent=1)
     print(f"wrote {len(songs)} songs to {args.out}")
 
 
-def cmd_rekey(args):
-    lock(unlock_bin(check_code(args.old_code)), check_code(args.code))
-
-
 def cmd_update(args):
-    code = check_code(args.code)
     known = {}
-    for s in unlock_bin(code):
+    for s in load_list():
         known[(clean.title_key(s["t"]), clean.key(s["p"]))] = s
     fresh = clean.clean(clean.load(args.track, args.artist))
     songs, missing = [], 0
@@ -152,19 +112,17 @@ def cmd_update(args):
         v = s.get("v") or (old.get("v", 0) if old else 0)
         songs.append({"t": s["t"], "a": s["a"], "p": s["p"], "y": y, "g": g, "v": v})
     print(f"{len(songs)} songs, {missing} new since the last build (no decade or genre yet)")
-    lock(songs, code)
+    save(songs)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("lock"); p.add_argument("--code", required=True); p.add_argument("--songs", required=True)
-    p.set_defaults(run=cmd_lock)
-    p = sub.add_parser("unlock"); p.add_argument("--code", required=True); p.add_argument("--out", required=True)
-    p.set_defaults(run=cmd_unlock)
-    p = sub.add_parser("rekey"); p.add_argument("--old-code", required=True); p.add_argument("--code", required=True)
-    p.set_defaults(run=cmd_rekey)
-    p = sub.add_parser("update"); p.add_argument("--code", required=True)
+    p = sub.add_parser("pack"); p.add_argument("--songs", required=True)
+    p.set_defaults(run=cmd_pack)
+    p = sub.add_parser("export"); p.add_argument("--out", required=True)
+    p.set_defaults(run=cmd_export)
+    p = sub.add_parser("update")
     p.add_argument("--track"); p.add_argument("--artist")
     p.set_defaults(run=cmd_update)
     args = ap.parse_args()

@@ -195,9 +195,7 @@
 (() => {
 "use strict";
 
-const DATA_URL = "songbook.bin";
-// Built in so guests are never asked for it; it only keeps the list out of the repo as plain text.
-const CODE = "740328";
+const DATA_URL = "songbook.json";
 const DECADES = [
   {id: "pre60", label: "Pre-60s", test: y => y < 1960},
   {id: "60", label: "60s", test: y => y >= 1960 && y < 1970},
@@ -216,32 +214,12 @@ const fold = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
   .replace(/&/g, " and ").replace(/['’`]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const letterOf = k => { const c = k.charAt(0); return c >= "a" && c <= "z" ? c.toUpperCase() : "#"; };
 
-/* ================================================================ unlock */
+/* ================================================================ load */
 
-let blob = null;
-async function fetchBlob() {
-  if (!blob) {
-    const res = await fetch(DATA_URL, {cache: "no-cache"});
-    if (!res.ok) throw new Error("fetch");
-    blob = new Uint8Array(await res.arrayBuffer());
-  }
-  return blob;
-}
-
-async function unlock(code) {
-  const b = await fetchBlob();
-  const magic = b.subarray(0, 4);
-  const iterations = new DataView(b.buffer, b.byteOffset + 4, 4).getUint32(0);
-  const salt = b.subarray(8, 24), iv = b.subarray(24, 36), sealed = b.subarray(36);
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(code), "PBKDF2", false, ["deriveKey"]);
-  const key = await crypto.subtle.deriveKey({name: "PBKDF2", hash: "SHA-256", salt, iterations},
-    base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
-  let plain;
-  try {
-    plain = await crypto.subtle.decrypt({name: "AES-GCM", iv, additionalData: magic}, key, sealed);
-  } catch { return null; }   // wrong code: the tag doesn't verify
-  const stream = new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"));
-  return JSON.parse(await new Response(stream).text());
+async function loadList() {
+  const res = await fetch(DATA_URL, {cache: "no-cache"});
+  if (!res.ok) throw new Error("fetch");
+  return res.json();
 }
 
 const gateTitle = $("gateTitle"), gateGo = $("gateGo"), gateMsg = $("gateMsg");
@@ -259,12 +237,7 @@ async function openBook() {
   busy = true;
   gateTitle.textContent = "Opening the songbook…"; gateMsg.hidden = true; gateGo.hidden = true;
   try {
-    if (!window.crypto?.subtle || !window.DecompressionStream) {
-      gateError("This browser is too old to open the songbook", "Try updating it, or use another phone.");
-      return;
-    }
-    const data = await unlock(CODE);
-    if (!data) { gateError("The songbook file doesn't match", "Please tell the KJ."); return; }
+    const data = await loadList();
     start(data);
   } catch (e) {
     gateError("Check you're online", "Then try again.");
