@@ -8,15 +8,10 @@ Site: <https://maddogkaraoke.co.uk/>
 
 ## How the list is stored
 
-The list is never in this repo or on the site in readable form. `songbook.bin`
-is the list gzipped and encrypted with AES-256-GCM, under a key derived from
-a 6-digit code with PBKDF2-SHA256 (310,000 rounds). Guests are not asked for the
-code: it is built into `index.html` (`CODE`), and the page decrypts the list in
-the browser as it loads.
-
-That keeps the list out of the repo as plain text, but anyone who views the
-page source can find the code and read the list. If you change the code
-(below), update `CODE` in `index.html` too.
+`songbook.json` is the whole list, in the compact form the page reads. It is
+plain and public: the page loads it directly and there is no code to type.
+`tools/build.py` reads and writes the same file, so a rebuild never needs
+anything but that file and the new export.
 
 ## Setup
 
@@ -51,19 +46,16 @@ never saved in the repo:
 python3 tools/sheet.py --wifi-name "Venue Guest" --wifi-password secret
 ```
 
-## Change the code
-
-```sh
-python3 tools/build.py rekey --old-code 123456 --code 654321
-```
-
-Then set `CODE` in `index.html` to the new code, and commit and push both files
-together.
-
 ## Load a new export from the KJ software
 
+Put the export (e.g. `Songlist-fulltrack.txt`) in the `import/` folder and push
+it to `main` (on GitHub: **Add file → Upload files**, into `import/`). The
+**Rebuild the songbook** workflow rebuilds `songbook.json`, commits it and removes
+the export. The list is public, so the export being in the commit history is
+fine. To do it by hand instead:
+
 ```sh
-python3 tools/build.py update --code 123456 --track Songlist-fulltrack.txt
+python3 tools/build.py update --track Songlist-fulltrack.txt
 git commit -am "Update the song list" && git push
 ```
 
@@ -79,24 +71,23 @@ genre of every song it already knows. The cleaning step:
   "Murder On The Dancefloor" / "Dance Floor")
 
 New songs show up in search and the A–Z lists straight away. Until they're
-tagged they don't appear under a genre or decade filter. To tag them, unlock the
-list, fill in `y` (year) and `g` (genre, one of the names in `tools/build.py`),
-and lock it again:
+tagged they don't appear under a genre or decade filter. To tag them, export the list, fill in `y` (year), `g` (genre, one of the names in
+`tools/build.py`) and `v` (singer: 1 male, 2 female, 3 duet), and pack it again:
 
 ```sh
-python3 tools/build.py unlock --code 123456 --out songs.json
+python3 tools/build.py export --out songs.json
 # edit songs.json
-python3 tools/build.py lock --code 123456 --songs songs.json
+python3 tools/build.py pack --songs songs.json
 ```
 
-`songs.json` is unencrypted, so it's in `.gitignore`. Don't commit it.
+`songs.json` is only a working copy, so it's in `.gitignore`.
 
 ## Files
 
 | | |
 |---|---|
-| `index.html` | the whole site: code screen, list, search, filters |
-| `songbook.bin` | the encrypted song list |
+| `index.html` | the whole site: list, search, filters |
+| `songbook.json` | the song list |
 | `tools/clean.py` | turns a raw export into a clean, de-duplicated list |
-| `tools/build.py` | lock / unlock / rekey / update `songbook.bin` |
+| `tools/build.py` | update / export / pack `songbook.json` |
 | `tools/sheet.py` | the printable QR sheet |
