@@ -448,6 +448,7 @@ function jumpTo(l) {
   const listTop = list.getBoundingClientRect().top + scrollY;
   const header = $("top").getBoundingClientRect().height;
   window.scrollTo(0, listTop + pos * ROW - header);
+  clearTimeout(bubbleTimer);
   bubble.textContent = l; bubble.hidden = false;
 }
 function scrub(e) {
@@ -462,9 +463,18 @@ jump.addEventListener("pointerdown", e => {
   scrub(e);
 });
 jump.addEventListener("pointermove", e => { if (scrubbing) scrub(e); });
-const endScrub = () => { scrubbing = false; setTimeout(() => (bubble.hidden = true), 250); };
-jump.addEventListener("pointerup", endScrub);
-jump.addEventListener("pointercancel", endScrub);
+let bubbleTimer = 0;
+const endScrub = () => {
+  scrubbing = false;
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => (bubble.hidden = true), 250);
+};
+// iOS Safari doesn't always deliver pointerup to the rail (pointer capture can be lost when the
+// page scrolls under the finger), so listen for every way a gesture can end, window-wide.
+for (const t of ["pointerup", "pointercancel", "touchend", "touchcancel"]) addEventListener(t, endScrub, {passive: true});
+jump.addEventListener("lostpointercapture", endScrub);
+addEventListener("blur", endScrub);
+document.addEventListener("visibilitychange", endScrub);
 
 /* ---------------------------------------------------------------- controls */
 
