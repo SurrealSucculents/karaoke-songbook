@@ -96,12 +96,33 @@ clears types that came from export titles, so load the export again after).
 `d` is only for a male and female pair who sing together; a DJ or producer with
 a guest vocalist takes the singer's type instead.
 
+## Karaoke nights
+
+The upcoming dates run along the bottom of the page; tap one for the full list.
+They live in `schedule.json`, one `YYYY-MM-DD` per night:
+
+```json
+{"nights": ["2026-10-23", "2026-10-24"]}
+```
+
+Edit it on GitHub (pencil icon) and commit to `main`. Past dates drop off by
+themselves at midnight, so old ones can stay in the file. If the file is missing
+or empty, the strip just doesn't show.
+
+## Sharing
+
+The **Share** button at the top, the **Share** link on a song and **Share the
+dates** use the phone's own share menu (WhatsApp, Messages…), or copy the link
+where there isn't one. Shared links open straight onto the song
+(`?song=…&by=…`) or the list of dates (`?dates`).
+
 ## Files
 
 | | |
 |---|---|
-| `index.html` | the whole site: list, search, filters |
+| `index.html` | the whole site: list, search, filters, dates, sharing |
 | `songbook.json` | the song list |
+| `schedule.json` | the karaoke nights |
 | `tools/clean.py` | turns a raw export into a clean, de-duplicated list |
 | `tools/build.py` | update / export / pack `songbook.json` |
 | `tools/artist_voices.json` | singer type per act, for the Singer filter |

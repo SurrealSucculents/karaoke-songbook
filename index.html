@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#08040F">
 <meta name="robots" content="noindex,nofollow">
 <title>Mad Dog Karaoke Songbook</title>
+<meta name="description" content="Find a song to sing at Mad Dog Karaoke, and see when the next karaoke nights are.">
+<meta property="og:title" content="Mad Dog Karaoke Songbook">
+<meta property="og:description" content="Find a song to sing, and see when the next karaoke nights are.">
+<meta property="og:url" content="https://maddogkaraoke.co.uk/">
+<meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308040F'/%3E%3Cpath d='M13 22a4 4 0 1 1-2-3.46V8l12-2v12a4 4 0 1 1-2-3.46V9.36L13 10.7z' fill='%23F2EEF7'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -45,8 +50,11 @@
 
   /* ---------- top ---------- */
   .top{position:sticky;top:0;z-index:5;background:var(--ground);padding-top:env(safe-area-inset-top)}
-  .bar{display:flex;align-items:baseline;gap:10px;padding:16px var(--pad) 10px}
+  .bar{display:flex;align-items:center;gap:10px;padding:12px var(--pad) 8px}
   .bar .count{margin-left:auto;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .share{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
+         border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
+  .share svg{width:16px;height:16px}
   .search{padding:0 var(--pad);position:relative}
   .search input{font:inherit;width:100%;padding:12px 44px 12px 14px;min-height:var(--tap);
                 border-radius:var(--r);border:1px solid var(--edge);background:var(--riser);color:var(--ink);
@@ -136,6 +144,34 @@
   .ask li b{font-weight:600;overflow-wrap:anywhere}
   .ask li i{font-style:normal;color:var(--faint)}
 
+  /* schedule sheet */
+  .cal{display:grid;gap:14px}
+  .cal h3{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .cal ol{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
+  .cal li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:11px 4px;
+          border-bottom:1px solid var(--rail);font-size:15.5px;font-weight:600}
+  .cal li span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--live)}
+  .acts.stick{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));background:var(--riser);
+               padding:10px 0 calc(18px + env(safe-area-inset-bottom));margin-bottom:calc(-18px - env(safe-area-inset-bottom))}
+  .cal li.pick{background:var(--lift);border-radius:var(--r);border-bottom-color:transparent;padding-inline:10px}
+
+  /* ---------- dates dock: upcoming nights along the bottom ---------- */
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--ground);border-top:1px solid var(--rail);
+        padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
+  .dock .wrap{display:flex;align-items:stretch;gap:var(--gap);overflow-x:auto;scroll-snap-type:x proximity;
+              scroll-padding-inline:var(--pad);padding:0 var(--pad);scrollbar-width:none;overscroll-behavior-x:contain}
+  .dock .wrap::-webkit-scrollbar{display:none}
+  .dock .lead{flex:0 0 auto;align-self:center;scroll-snap-align:start;font-size:10.5px;font-weight:700;letter-spacing:.14em;line-height:1.35;
+              text-transform:uppercase;color:var(--dim);padding-right:2px}
+  .night{flex:0 0 auto;scroll-snap-align:start;min-width:74px;min-height:var(--tap);padding:6px 12px;text-align:left;
+         border:1px solid var(--rail);border-radius:var(--r);background:var(--riser);display:grid;gap:1px}
+  .night span{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .night b{font-size:15px;font-weight:700;white-space:nowrap}
+  .night.now{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live)}
+  .night.now span{color:var(--live)}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#0B0616;
+         font-weight:600;font-size:14px;padding:10px 16px;border-radius:var(--r);pointer-events:none;white-space:nowrap}
+
   /* ---------- artist page ---------- */
   .page{position:fixed;inset:0;z-index:10;background:var(--ground);overflow:auto;-webkit-overflow-scrolling:touch}
   .page-top{position:sticky;top:0;background:var(--ground);padding:calc(8px + env(safe-area-inset-top)) var(--pad) 0;z-index:2}
@@ -161,7 +197,10 @@
 <div id="app" hidden>
   <header class="top" id="top">
     <div class="wrap">
-      <div class="bar"><span class="mark">Mad Dog Karaoke</span><span class="count" id="total"></span></div>
+      <div class="bar"><span class="mark">Mad Dog Karaoke</span><span class="count" id="total"></span>
+        <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
+          d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div>
       <div class="search">
         <input id="q" type="search" placeholder="Search songs or artists" autocomplete="off" autocorrect="off"
                autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search songs or artists">
@@ -190,6 +229,7 @@
   </div>
   <nav class="jump" id="jump" aria-label="Jump to letter" hidden></nav>
   <div class="bubble" id="bubble" hidden></div>
+  <nav class="dock" id="dock" aria-label="Upcoming karaoke nights" hidden><div class="wrap" id="dockRow"></div></nav>
 </div>
 
 <section class="page" id="artistPage" hidden aria-labelledby="artistName">
@@ -204,6 +244,8 @@
   <div class="foot"></div>
 </section>
 
+<div class="toast" id="toast" role="status" hidden></div>
+
 <div class="scrim" id="scrim" hidden>
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div>
 </div>
@@ -213,6 +255,8 @@
 "use strict";
 
 const DATA_URL = "songbook.json";
+const SCHEDULE_URL = "schedule.json";
+const HOME = location.origin + location.pathname;
 const DECADES = [
   {id: "pre60", label: "Pre-60s", test: y => y < 1960},
   {id: "60", label: "60s", test: y => y >= 1960 && y < 1970},
@@ -239,6 +283,18 @@ async function loadList() {
   return res.json();
 }
 
+// The dates are a nice extra: if they don't load, the songbook still opens without them.
+async function loadSchedule() {
+  try {
+    const res = await fetch(SCHEDULE_URL, {cache: "no-cache"});
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.nights || []).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+  } catch {
+    return [];
+  }
+}
+
 const gateTitle = $("gateTitle"), gateGo = $("gateGo"), gateMsg = $("gateMsg");
 
 function gateError(title, body) {
@@ -254,8 +310,8 @@ async function openBook() {
   busy = true;
   gateTitle.textContent = "Opening the songbook…"; gateMsg.hidden = true; gateGo.hidden = true;
   try {
-    const data = await loadList();
-    start(data);
+    const [data, nights] = await Promise.all([loadList(), loadSchedule()]);
+    start(data, nights);
   } catch (e) {
     gateError("Check you're online", "Then try again.");
   } finally {
@@ -266,13 +322,14 @@ gateGo.onclick = openBook;
 
 /* ================================================================ app */
 
-let SONGS = [], ARTISTS = [], GENRES = [];
+let SONGS = [], ARTISTS = [], GENRES = [], NIGHTS = [];
 const VOICES = ["Male", "Female", "Duet"];
 const state = {tab: "songs", q: "", genres: new Set(), decades: new Set(), voices: new Set()};
 let view = [];   // what the list is showing right now
 
-function start(data) {
+function start(data, nights) {
   GENRES = data.g;
+  NIGHTS = nights;
   ARTISTS = data.a.map((name, i) => {
     const k = fold(name).replace(/^the /, "");
     return {i, name, k, letter: letterOf(k), songs: []};
@@ -301,8 +358,19 @@ function start(data) {
   $("gate").hidden = true;
   $("app").hidden = false;
   document.title = "Mad Dog Karaoke";
-  history.replaceState({v: "list"}, "");
+  // Shared links carry ?song=…&by=… or ?dates; open what was shared, then tidy the address.
+  const p = new URLSearchParams(location.search);
+  history.replaceState({v: "list"}, "", location.pathname);
+  buildDock();
   refresh();
+  if (p.has("song")) {
+    const t = p.get("song"), by = p.get("by") || "";
+    const s = SONGS.find(s => s.t === t && (!by || s.by === by)) ||
+              SONGS.find(s => s.ft === fold(t) && (!by || s.fa === fold(by)));
+    if (s) songSheet(s);
+  } else if (p.has("dates") && upcoming().length) {
+    datesSheet();
+  }
 }
 
 function anyFilter() { return state.genres.size || state.decades.size || state.voices.size; }
@@ -429,7 +497,7 @@ function draw() {
   list.appendChild(frag);
 }
 addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(draw); }, {passive: true});
-addEventListener("resize", () => { placeJump(); draw(); });
+addEventListener("resize", () => { fitDock(); draw(); });
 
 /* ---------------------------------------------------------------- A–Z */
 
@@ -454,7 +522,7 @@ function buildJump() {
 function placeJump() {
   const h = $("top").getBoundingClientRect().height;
   jump.style.top = h + 6 + "px";
-  jump.style.bottom = "calc(10px + env(safe-area-inset-bottom))";
+  jump.style.bottom = dockH ? dockH + 10 + "px" : "calc(10px + env(safe-area-inset-bottom))";
 }
 function jumpTo(l) {
   const letters = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
@@ -618,9 +686,11 @@ function songSheet(s, onArtistPage) {
     </div>
     ${facts.length ? `<div class="facts">${facts.join("")}</div>` : ""}
     <div class="acts"><button type="button" class="quiet" data-act="close">Close</button>
+      <button type="button" class="quiet" data-act="share">Share</button>
       ${all > 1 ? `<button type="button" class="go" data-act="artist">All ${fmt(all)} songs by ${esc(s.artist.name)}</button>` : ""}</div>`,
     el => {
       el.querySelector('[data-act="close"]').onclick = () => closeSheet();
+      el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
       const a = el.querySelector('[data-act="artist"]');
       // The sheet's history entry becomes the artist page's, so Back goes to the list.
       if (a) a.onclick = () => {
@@ -628,6 +698,121 @@ function songSheet(s, onArtistPage) {
         openArtist(s.artist, true);
       };
     }, true);
+}
+
+/* ---------------------------------------------------------------- sharing */
+
+const toastEl = $("toast");
+let toastTimer = 0;
+function toast(text) {
+  toastEl.textContent = text;
+  toastEl.style.bottom = dockH + 16 + "px";
+  toastEl.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toastEl.hidden = true), 2200);
+}
+
+// The phone's own share menu where there is one; otherwise copy the link.
+async function share(d) {
+  if (navigator.share) {
+    try { await navigator.share(d); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try {
+    await navigator.clipboard.writeText(d.text ? `${d.text}\n${d.url}` : d.url);
+    toast("Link copied");
+  } catch {
+    window.prompt("Copy this link", d.url);
+  }
+}
+
+const shareBook = () => share({
+  title: "Mad Dog Karaoke Songbook",
+  text: "Find a song to sing at Mad Dog Karaoke",
+  url: HOME,
+});
+const shareSong = s => share({
+  title: `${s.t} – ${s.by}`,
+  text: `Sing “${s.t}” by ${s.by} at Mad Dog Karaoke`,
+  url: `${HOME}?${new URLSearchParams({song: s.t, by: s.by})}`,
+});
+const shareDates = () => share({
+  title: "Mad Dog Karaoke nights",
+  text: "Mad Dog Karaoke nights:\n" + upcoming().map(k => {
+    const w = whenWord(k);
+    return shortDate(k) + (w ? ` (${w.toLowerCase()})` : "");
+  }).join("\n"),
+  url: HOME + "?dates",
+});
+$("shareBook").onclick = shareBook;
+
+/* ---------------------------------------------------------------- karaoke nights */
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+                "October", "November", "December"];
+const pad2 = n => String(n).padStart(2, "0");
+const keyOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const dateOf = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+const shortDate = k => { const d = dateOf(k); return `${DAYS[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`; };
+const longDate = k => { const d = dateOf(k); return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+// Tonight's night stays listed until midnight.
+const upcoming = () => { const today = keyOf(new Date()); return NIGHTS.filter(k => k >= today); };
+function whenWord(k) {
+  const t = new Date();
+  if (k === keyOf(t)) return "Tonight";
+  t.setDate(t.getDate() + 1);
+  return k === keyOf(t) ? "Tomorrow" : "";
+}
+
+const dock = $("dock"), dockRow = $("dockRow");
+let dockH = 0;
+function buildDock() {
+  const ks = upcoming();
+  dock.hidden = !ks.length;
+  dockRow.innerHTML = ks.length ? `<span class="lead">Karaoke<br>nights</span>` + ks.map(k => {
+    const d = dateOf(k), w = whenWord(k);
+    return `<button type="button" class="night${w === "Tonight" ? " now" : ""}" data-k="${k}" aria-label="${longDate(k)}${w ? `, ${w.toLowerCase()}` : ""}">` +
+      `<span>${w || DAYS[d.getDay()].slice(0, 3)}</span><b>${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}</b></button>`;
+  }).join("") : "";
+  dockRow.scrollLeft = 0;
+  fitDock();
+}
+// Keep the list's last rows and the A–Z rail clear of the dock.
+function fitDock() {
+  dockH = dock.hidden || $("app").hidden ? 0 : dock.offsetHeight;
+  $("app").style.paddingBottom = dockH ? dockH + "px" : "";
+  placeJump();
+}
+dockRow.addEventListener("click", e => {
+  const b = e.target.closest(".night");
+  if (b) datesSheet(b.dataset.k);
+});
+// A page left open overnight drops last night's date.
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("app").hidden) buildDock(); });
+
+function datesSheet(pick) {
+  const ks = upcoming();
+  const months = new Map();
+  for (const k of ks) {
+    const d = dateOf(k), m = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    if (!months.has(m)) months.set(m, []);
+    months.get(m).push(k);
+  }
+  const cal = [...months].map(([m, days]) => `<section><h3>${m}</h3><ol>` + days.map(k => {
+    const w = whenWord(k);
+    return `<li${k === pick ? ` class="pick"` : ""}>${longDate(k)}${w ? `<span>${w}</span>` : ""}</li>`;
+  }).join("") + `</ol></section>`).join("");
+  openSheet(`
+    <h2 id="sheetTitle">Karaoke nights</h2>
+    <p class="sub">${plural(ks.length, "night", "nights")} coming up. Come and sing.</p>
+    <div class="cal">${cal}</div>
+    <div class="acts stick"><button type="button" class="quiet" data-act="close">Close</button>
+      <button type="button" class="go" data-act="share">Share the dates</button></div>`, el => {
+    el.querySelector('[data-act="close"]').onclick = () => closeSheet();
+    el.querySelector('[data-act="share"]').onclick = shareDates;
+    el.querySelector(".pick")?.scrollIntoView({block: "center"});
+  });
 }
 
 /* ---------------------------------------------------------------- artist page */
