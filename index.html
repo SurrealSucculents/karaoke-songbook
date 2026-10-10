@@ -70,9 +70,14 @@
   .msg.stop{background:#2B0D1B;color:#FFC2D4;box-shadow:inset 2px 0 0 var(--part-a)}
 
   /* ---------- top ---------- */
-  .top{position:sticky;top:0;z-index:5;padding-top:env(safe-area-inset-top);
-       background:rgba(8,4,15,.78);-webkit-backdrop-filter:saturate(1.5) blur(16px);backdrop-filter:saturate(1.5) blur(16px)}
-  .bar{display:flex;align-items:center;gap:10px;padding:12px var(--pad) 10px}
+  /* Scrolled down, the logo row slides up out of view and the tabs and filters stay.
+     It moves rather than shrinks, so the list underneath never jumps. */
+  .top{position:sticky;top:0;z-index:5;padding-top:env(safe-area-inset-top);transition:transform .38s var(--spring);
+       background:#0B0614;box-shadow:0 1px 0 var(--rail)}
+  .bar{display:flex;align-items:center;gap:10px;padding:12px var(--pad) 10px;transition:opacity .2s}
+  .top.compact{transform:translateY(calc(-1 * var(--bar-h, 0px)))}
+  .top.compact .bar{opacity:0;pointer-events:none}
+  .jump{transition:top .38s var(--spring)}
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
   .share svg{width:16px;height:16px}
@@ -497,6 +502,7 @@ function start(data, nights) {
   // Shared links carry ?song=…&by=… or ?dates; open what was shared, then tidy the address.
   const p = new URLSearchParams(location.search);
   history.replaceState({v: "list"}, "", location.pathname);
+  measureBar();
   buildDock();
   refresh();
   if (p.has("song")) {
@@ -662,7 +668,24 @@ function draw() {
   list.appendChild(frag);
 }
 addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(draw); }, {passive: true});
-addEventListener("resize", () => { fitDock(); draw(); });
+
+const top = $("top"), bar = top.querySelector(".bar");
+let barH = 0, compact = false;
+const headerH = () => top.offsetHeight - (compact ? barH : 0);
+function measureBar() {
+  barH = bar.offsetHeight;
+  top.style.setProperty("--bar-h", barH + "px");
+}
+// Two thresholds so it doesn't flicker when the page sits right on the edge.
+function fitHeader() {
+  const want = compact ? scrollY > 16 : scrollY > 48;
+  if (want === compact) return;
+  compact = want;
+  top.classList.toggle("compact", compact);
+  placeJump();
+}
+addEventListener("scroll", fitHeader, {passive: true});
+addEventListener("resize", () => { measureBar(); fitDock(); draw(); });
 
 /* ---------------------------------------------------------------- A–Z */
 
@@ -685,8 +708,7 @@ function buildJump() {
   placeJump();
 }
 function placeJump() {
-  const h = $("top").getBoundingClientRect().height;
-  jump.style.top = h + 6 + "px";
+  jump.style.top = headerH() + 6 + "px";
   jump.style.bottom = dockH ? dockH + 10 + "px" : "calc(10px + env(safe-area-inset-bottom))";
 }
 function jumpTo(l) {
@@ -696,8 +718,8 @@ function jumpTo(l) {
   if (i >= letters.length) return;
   const pos = firstAt.get(letters[i]);
   const listTop = list.getBoundingClientRect().top + scrollY;
-  const header = $("top").getBoundingClientRect().height;
-  window.scrollTo(0, listTop + pos * ROW - header);
+  // Any jump lands far enough down that the header is compact.
+  window.scrollTo(0, listTop + pos * ROW - (top.offsetHeight - barH));
   clearTimeout(bubbleTimer);
   bubble.textContent = l; bubble.hidden = false;
 }
