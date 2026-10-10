@@ -86,14 +86,22 @@
      gradient title each time, which is when scrolling stuttered. */
   .top > .wrap{max-width:none}
   .bar,.more{--side:max(0px, calc((100vw - 640px) / 2));background:#0B0614;will-change:transform}
+  /* Opening or shutting must change nothing but the slide itself (a transform) and the chevron's
+     fade (opacity), both already on layers of their own, so nothing is redrawn or laid out just as
+     the compositor starts the slide. Redrawing then (the logo row for its border colour, the
+     sliding rows when the chevron got and lost a layer for its fade) held up the slide's first
+     frames, which is when scrolling stuttered. Hence: the hairline under the header belongs to the sliding rows and
+     hangs just below them, so shut it shows under the logo row without the logo row changing; the
+     tabs and filters stay tappable when shut (they sit wholly behind the logo row and above the
+     screen). */
   .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
-       padding:calc(12px + env(safe-area-inset-top)) calc(var(--pad) + var(--side)) 10px;border-bottom:1px solid #0B0614}
+       padding:calc(12px + env(safe-area-inset-top)) calc(var(--pad) + var(--side)) 10px}
   .more{position:relative;z-index:1;padding-inline:var(--side);transition:transform .32s var(--spring)}
-  .top.collapsed .more{transform:translate3d(0,-100%,0);pointer-events:none}
-  .top.collapsed .bar{border-bottom-color:var(--rail)}
+  .more::after{content:"";position:absolute;left:0;right:0;top:100%;height:1px;background:var(--rail)}
+  .top.collapsed .more{transform:translate3d(0,-100%,0)}
   .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
         color:var(--dim);background:#0B0614;border:1px solid var(--rail);border-top:0;border-radius:0 0 12px 12px;
-        opacity:0;pointer-events:none;transition:opacity .2s,color .2s}
+        opacity:0;pointer-events:none;transition:opacity .2s;will-change:opacity}
   .chev svg{width:18px;height:18px}
   .top.collapsed .chev{opacity:1;pointer-events:auto}
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
@@ -140,7 +148,7 @@
   .filters button.clear{flex:0 0 auto;padding:9px 14px;border-color:transparent;color:var(--dim);
                         text-decoration:underline;text-underline-offset:3px}
   .eyebrow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
-           padding:14px var(--pad) 6px;border-bottom:1px solid var(--rail);font-variant-numeric:tabular-nums}
+           padding:14px var(--pad) 6px;font-variant-numeric:tabular-nums}
   .eyebrow .count{display:grid;gap:2px}
   .eyebrow .note{font-size:12.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint)}
 
@@ -809,7 +817,7 @@ let lastY = 0, travel = 0;
 let topH = 0, moreH = 0, barH = 0, shut = false;
 function measureHeader() {
   topH = top.offsetHeight; moreH = more.offsetHeight; barH = bar.offsetHeight;
-  $("app").style.paddingTop = topH + "px";   // room for the fixed header
+  $("app").style.paddingTop = topH + 1 + "px";   // room for the fixed header and its hairline
   placeJump();
 }
 new ResizeObserver(measureHeader).observe(top);
@@ -864,10 +872,10 @@ function buildJump() {
     .map(l => `<span class="${firstAt.has(l) ? "" : "off"}" data-l="${l}">${l}</span>`).join("");
   placeJump();
 }
-// The rail sits just below the full header and stays put when the header opens or shuts:
-// nothing about it changes while scrolling.
+// The rail sits just below the full header (and its hairline) and stays put when the header
+// opens or shuts: nothing about it changes while scrolling.
 function placeJump() {
-  jump.style.top = topH + 6 + "px";
+  jump.style.top = topH + 7 + "px";
   jump.style.bottom = dockH ? dockH + 10 + "px" : "calc(10px + env(safe-area-inset-bottom))";
 }
 function jumpTo(l) {
@@ -878,7 +886,7 @@ function jumpTo(l) {
   const pos = firstAt.get(letters[i]);
   const listTop = list.getBoundingClientRect().top + scrollY;
   // Any jump lands far enough down that the header is collapsed to the logo row.
-  window.scrollTo(0, listTop + pos * ROW - barH);
+  window.scrollTo(0, listTop + pos * ROW - barH - 1);   // 1: the hairline under it
   clearTimeout(bubbleTimer);
   bubble.textContent = l; bubble.hidden = false;
 }
