@@ -221,6 +221,19 @@
   .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
   .head .meta{margin:0;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
   .ask{margin:0;padding:10px 12px;border-radius:var(--r);background:var(--lift);font-size:14px;color:var(--dim)}
+  .listen{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;
+          border:1px solid var(--edge);border-radius:var(--r);background:transparent;font-size:15px;font-weight:600}
+  .listen svg{width:16px;height:16px;color:var(--part-b)}
+  .sheet > .swap{display:grid;gap:12px;animation:rise .3s var(--spring) both}
+  .back-link{justify-self:start;background:none;border:0;padding:0;min-height:32px;color:var(--dim);font-size:14px;font-weight:600}
+  .apps{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
+  .apps a{display:flex;align-items:center;gap:12px;min-height:50px;padding:0 4px;border-bottom:1px solid var(--rail);
+          color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:600}
+  .apps a:active{background:var(--lift)}
+  .apps i{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+  .apps b{flex:1;font-weight:600}
+  .apps span{color:var(--faint);font-size:12.5px;font-weight:500}
+  .apps a::after{content:"›";color:var(--faint);font-size:18px}
 
   /* schedule sheet */
   .cal{display:grid;gap:14px}
@@ -877,9 +890,11 @@ const scrim = $("scrim"), sheet = $("sheet");
 function openSheet(html, wire, modal) {
   scrim.classList.toggle("modal", !!modal);
   sheet.innerHTML = `<div class="grab"></div>` + html;
+  // Already open (e.g. song card -> listen list): swap the content in place, one history entry.
+  const swap = isOpen(scrim);
   reveal(scrim);
   document.body.style.overflow = "hidden";
-  history.pushState({v: "sheet"}, "");
+  if (!swap) history.pushState({v: "sheet"}, "");
   wire?.(sheet);
   sheet.focus({preventScroll: true});
 }
@@ -963,12 +978,15 @@ function songSheet(s, onArtistPage) {
       ${facts.length ? `<p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>` : ""}</div>
       <button type="button" class="fav" data-act="fav"></button></div>
     <p class="ask">Show this to the host with your first name.</p>
+    <button type="button" class="listen" data-act="listen"><svg viewBox="0 0 24 24" fill="currentColor"
+      aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>Listen to song</button>
     <div class="acts"><button type="button" class="quiet" data-act="close">Close</button>
       <button type="button" class="quiet" data-act="share">Share</button>
       ${all > 1 ? `<button type="button" class="go small" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs</button>` : ""}</div>`,
     el => {
       el.querySelector('[data-act="close"]').onclick = () => closeSheet();
       el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
+      el.querySelector('[data-act="listen"]').onclick = () => listenSheet(s, onArtistPage);
       const fav = el.querySelector('[data-act="fav"]');
       const show = () => {
         fav.setAttribute("aria-pressed", isFav(s));
@@ -986,6 +1004,38 @@ function songSheet(s, onArtistPage) {
         openArtist(s.artist, true);
       };
     }, true);
+}
+
+/* ---------------------------------------------------------------- listen */
+
+// Searches rather than exact tracks: there's no catalogue to look songs up in, and every app
+// below takes a search link. On a phone with the app installed, these open the app itself.
+const LISTEN = [
+  ["Spotify", "#1DB954", q => `https://open.spotify.com/search/${encodeURIComponent(q)}`],
+  ["Apple Music", "#FA243C", q => `https://music.apple.com/gb/search?term=${encodeURIComponent(q)}`],
+  ["YouTube", "#FF0000", q => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`],
+  ["YouTube Music", "#FF4E45", q => `https://music.youtube.com/search?q=${encodeURIComponent(q)}`],
+  ["Amazon Music", "#25D1DA", q => `https://music.amazon.co.uk/search/${encodeURIComponent(q)}`],
+  ["Deezer", "#A238FF", q => `https://www.deezer.com/search/${encodeURIComponent(q)}`],
+  ["SoundCloud", "#FF5500", q => `https://soundcloud.com/search?q=${encodeURIComponent(q)}`],
+];
+// "feat." credits and bracketed notes (Live, Remix…) make searches worse, so leave them out.
+const plainQuery = s => `${s.t} ${s.by}`.replace(/\s*[([].*?[)\]]/g, "").replace(/\s+(feat\.?|ft\.?|featuring)\s.*$/i, "").trim();
+
+function listenSheet(s, onArtistPage) {
+  const q = plainQuery(s);
+  const row = (name, colour, url, note = "") =>
+    `<li><a href="${esc(url)}" target="_blank" rel="noopener"><i style="background:${colour}"></i><b>${esc(name)}</b>` +
+    `${note ? `<span>${esc(note)}</span>` : ""}</a></li>`;
+  openSheet(`<div class="swap">
+    <button type="button" class="back-link" data-act="back">‹ Back</button>
+    <div class="head"><div><h2 id="sheetTitle">Listen to ${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div></div>
+    <ul class="apps">
+      ${LISTEN.map(([name, colour, url]) => row(name, colour, url(q))).join("")}
+      ${row("YouTube", "#FF0000", LISTEN[2][2](q + " karaoke"), "Karaoke version")}
+    </ul></div>`, el => {
+    el.querySelector('[data-act="back"]').onclick = () => songSheet(s, onArtistPage);
+  }, true);
 }
 
 /* ---------------------------------------------------------------- sharing */
