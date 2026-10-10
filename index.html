@@ -230,9 +230,7 @@
   .apps a{display:flex;align-items:center;gap:12px;min-height:50px;padding:0 4px;border-bottom:1px solid var(--rail);
           color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:600}
   .apps a:active{background:var(--lift)}
-  .apps i{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
   .apps b{flex:1;font-weight:600}
-  .apps span{color:var(--faint);font-size:12.5px;font-weight:500}
   .apps a::after{content:"›";color:var(--faint);font-size:18px}
 
   /* schedule sheet */
@@ -1011,28 +1009,25 @@ function songSheet(s, onArtistPage) {
 // Searches rather than exact tracks: there's no catalogue to look songs up in, and every app
 // below takes a search link. On a phone with the app installed, these open the app itself.
 const LISTEN = [
-  ["Spotify", "#1DB954", q => `https://open.spotify.com/search/${encodeURIComponent(q)}`],
-  ["Apple Music", "#FA243C", q => `https://music.apple.com/gb/search?term=${encodeURIComponent(q)}`],
-  ["YouTube", "#FF0000", q => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`],
-  ["YouTube Music", "#FF4E45", q => `https://music.youtube.com/search?q=${encodeURIComponent(q)}`],
-  ["Amazon Music", "#25D1DA", q => `https://music.amazon.co.uk/search/${encodeURIComponent(q)}`],
-  ["Deezer", "#A238FF", q => `https://www.deezer.com/search/${encodeURIComponent(q)}`],
-  ["SoundCloud", "#FF5500", q => `https://soundcloud.com/search?q=${encodeURIComponent(q)}`],
+  ["Spotify", q => `https://open.spotify.com/search/${encodeURIComponent(q)}`],
+  ["Apple Music", q => `https://music.apple.com/gb/search?term=${encodeURIComponent(q)}`],
+  ["YouTube", q => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`],
+  ["YouTube Music", q => `https://music.youtube.com/search?q=${encodeURIComponent(q)}`],
+  ["Amazon Music", q => `https://music.amazon.co.uk/search/${encodeURIComponent(q)}`],
+  ["Deezer", q => `https://www.deezer.com/search/${encodeURIComponent(q)}`],
+  ["SoundCloud", q => `https://soundcloud.com/search?q=${encodeURIComponent(q)}`],
 ];
 // "feat." credits and bracketed notes (Live, Remix…) make searches worse, so leave them out.
 const plainQuery = s => `${s.t} ${s.by}`.replace(/\s*[([].*?[)\]]/g, "").replace(/\s+(feat\.?|ft\.?|featuring)\s.*$/i, "").trim();
 
 function listenSheet(s, onArtistPage) {
   const q = plainQuery(s);
-  const row = (name, colour, url, note = "") =>
-    `<li><a href="${esc(url)}" target="_blank" rel="noopener"><i style="background:${colour}"></i><b>${esc(name)}</b>` +
-    `${note ? `<span>${esc(note)}</span>` : ""}</a></li>`;
+  const row = (name, url) => `<li><a href="${esc(url)}" target="_blank" rel="noopener"><b>${esc(name)}</b></a></li>`;
   openSheet(`<div class="swap">
     <button type="button" class="back-link" data-act="back">‹ Back</button>
     <div class="head"><div><h2 id="sheetTitle">Listen to ${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div></div>
     <ul class="apps">
-      ${LISTEN.map(([name, colour, url]) => row(name, colour, url(q))).join("")}
-      ${row("YouTube", "#FF0000", LISTEN[2][2](q + " karaoke"), "Karaoke version")}
+      ${LISTEN.map(([name, url]) => row(name, url(q))).join("")}
     </ul></div>`, el => {
     el.querySelector('[data-act="back"]').onclick = () => songSheet(s, onArtistPage);
   }, true);

@@ -141,8 +141,7 @@ phone; nothing is sent anywhere.
 ## Listen to a song
 
 **Listen to song** on a song card lists music apps (Spotify, Apple Music,
-YouTube, YouTube Music, Amazon Music, Deezer, SoundCloud) plus a karaoke version
-on YouTube. Each link searches that app for the title and artist ("feat."
+YouTube, YouTube Music, Amazon Music, Deezer, SoundCloud). Each link searches that app for the title and artist ("feat."
 credits and bracketed notes left out); on a phone with the app installed it
 opens in the app. Add or remove apps in `LISTEN` in `index.html`.
 
