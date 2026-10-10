@@ -107,8 +107,11 @@ dates link (`?dates`) opens them as a full list.
 They live in `schedule.json`, one `YYYY-MM-DD` per night:
 
 ```json
-{"nights": ["2026-10-23", "2026-10-24"]}
+{"venue": "The Lugger Inn", "nights": ["2026-10-23", "2026-10-24"]}
 ```
+
+`venue` shows under each date and in shared date lists; leave it out to show
+dates only.
 
 Edit it on GitHub (pencil icon) and commit to `main`. Past dates drop off by
 themselves at midnight, so old ones can stay in the file. If the file is missing

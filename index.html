@@ -50,8 +50,7 @@
   .mark{display:inline-flex;align-items:center;gap:9px;font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
   .mark em{font-style:normal;background:linear-gradient(90deg,var(--part-a),#FF6FA0 45%,var(--part-b));
            -webkit-background-clip:text;background-clip:text;color:transparent}
-  .logo{display:block;flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#DED9D3;
-        box-shadow:0 4px 16px rgba(0,0,0,.4)}
+  .logo{display:block;flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#DED9D3}
   /* loading equaliser */
   .eq{display:flex;gap:4px;align-items:flex-end;height:22px}
   .eq i{width:5px;border-radius:3px;background:linear-gradient(var(--part-b),var(--part-a));height:100%;
@@ -78,13 +77,15 @@
      paints its own full-width background. */
   .top{position:sticky;top:0;z-index:5;pointer-events:none}
   .top .wrap > *{pointer-events:auto}
-  /* Solid backgrounds painted by the boxes themselves, widened to the screen edges with two
-     sideways shadows. (A stretched pseudo-element behind them could fail to paint in iOS Safari
-     while the rows slid, letting songs show through above the tabs.) */
-  .bar,.more{background:#0B0614;box-shadow:-100vw 0 #0B0614,100vw 0 #0B0614}
+  /* The logo row and the sliding rows are each the full screen width with a solid background,
+     and each is kept as its own layer for good (will-change). Otherwise Safari makes the logo
+     row a layer when a slide starts and drops it when it ends, redrawing the logo and the
+     gradient title each time, which is when scrolling stuttered. */
+  .top > .wrap{max-width:none}
+  .bar,.more{--side:max(0px, calc((100vw - 640px) / 2));background:#0B0614;will-change:transform}
   .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
-       padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid #0B0614}
-  .more{position:relative;z-index:1;transition:transform .32s var(--spring)}
+       padding:calc(12px + env(safe-area-inset-top)) calc(var(--pad) + var(--side)) 10px;border-bottom:1px solid #0B0614}
+  .more{position:relative;z-index:1;padding-inline:var(--side);transition:transform .32s var(--spring)}
   .top.collapsed .more{transform:translate3d(0,-100%,0);pointer-events:none}
   .top.collapsed .bar{border-bottom-color:var(--rail)}
   .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
@@ -300,15 +301,16 @@
   .dock .wrap::-webkit-scrollbar{display:none}
   .dock .lead{flex:0 0 auto;scroll-snap-align:start;font-size:10.5px;font-weight:700;letter-spacing:.14em;
               text-transform:uppercase;color:var(--dim);white-space:nowrap;padding-right:2px}
-  .night{flex:0 0 auto;scroll-snap-align:start;padding:3px 10px;white-space:nowrap;font-size:13.5px;font-weight:700;
-         border:1px solid var(--rail);border-radius:999px;background:var(--riser)}
-  .night span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
+  .night{flex:0 0 auto;scroll-snap-align:start;display:grid;gap:1px;padding:5px 12px 6px;white-space:nowrap;
+         font-size:13.5px;font-weight:700;line-height:1.2;border:1px solid var(--rail);border-radius:14px;background:var(--riser)}
+  .night .when span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
+  .night .venue{font-size:11px;font-weight:600;color:var(--dim)}
   /* Tonight's glow fades a pre-drawn halo in and out (opacity only), so the bar isn't repainted. */
   .night.now{position:relative;border-color:var(--part-a);box-shadow:inset 0 0 0 1px var(--part-a)}
   .night.now::after{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;opacity:0;
                     box-shadow:0 0 16px rgba(237,31,97,.55);animation:glow 2.6s ease-in-out infinite;will-change:opacity}
   @keyframes glow{50%{opacity:1}}
-  .night.now span{color:var(--part-a)}
+  .night.now .when span{color:var(--part-a)}
   .toast{position:fixed;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#0B0616;
          font-weight:600;font-size:14px;padding:10px 16px;border-radius:999px;pointer-events:none;white-space:nowrap;
          box-shadow:0 10px 30px rgba(0,0,0,.5);animation:pop .35s var(--spring) both}
@@ -497,11 +499,12 @@ async function loadList() {
 async function loadSchedule() {
   try {
     const res = await fetch(SCHEDULE_URL, {cache: "no-cache"});
-    if (!res.ok) return [];
+    if (!res.ok) return {nights: []};
     const data = await res.json();
-    return (data.nights || []).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+    return {nights: (data.nights || []).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort(),
+            venue: typeof data.venue === "string" ? data.venue.trim() : ""};
   } catch {
-    return [];
+    return {nights: []};
   }
 }
 
@@ -521,8 +524,8 @@ async function openBook() {
   busy = true;
   gateTitle.textContent = "Opening the songbook…"; gateMsg.hidden = true; gateGo.hidden = true; $("eq").hidden = false;
   try {
-    const [data, nights] = await Promise.all([loadList(), loadSchedule()]);
-    start(data, nights);
+    const [data, schedule] = await Promise.all([loadList(), loadSchedule()]);
+    start(data, schedule);
   } catch (e) {
     gateError("Check you're online", "Then try again.");
   } finally {
@@ -552,14 +555,15 @@ function toggleFav(s) {
 
 /* ================================================================ app */
 
-let SONGS = [], ARTISTS = [], GENRES = [], NIGHTS = [];
+let SONGS = [], ARTISTS = [], GENRES = [], NIGHTS = [], VENUE = "";
 const VOICES = ["Male", "Female", "Duet"];
 const state = {tab: "songs", q: "", genres: new Set(), decades: new Set(), voices: new Set()};
 let view = [];   // what the list is showing right now
 
-function start(data, nights) {
+function start(data, schedule) {
   GENRES = data.g;
-  NIGHTS = nights;
+  NIGHTS = schedule.nights;
+  VENUE = schedule.venue || "";
   ARTISTS = data.a.map((name, i) => {
     const k = fold(name).replace(/^the /, "");
     return {i, name, k, letter: letterOf(k), songs: []};
@@ -1164,7 +1168,7 @@ const shareSong = s => share({
 });
 const shareDates = () => share({
   title: "Mad Dog Karaoke nights",
-  text: "Mad Dog Karaoke nights:\n" + upcoming().map(k => {
+  text: `Mad Dog Karaoke nights${VENUE ? ` at ${VENUE}` : ""}:\n` + upcoming().map(k => {
     const w = whenWord(k);
     return shortDate(k) + (w ? ` (${w.toLowerCase()})` : "");
   }).join("\n"),
@@ -1343,8 +1347,10 @@ function buildDock() {
   dock.hidden = !ks.length;
   dockRow.innerHTML = ks.length ? `<span class="lead">Karaoke nights</span>` + ks.map(k => {
     const d = dateOf(k), w = whenWord(k);
-    return `<span class="night${w === "Tonight" ? " now" : ""}" role="listitem" aria-label="${longDate(k)}${w ? `, ${w.toLowerCase()}` : ""}">` +
-      `<span>${w || DAYS[d.getDay()].slice(0, 3)}</span>${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}</span>`;
+    return `<span class="night${w === "Tonight" ? " now" : ""}" role="listitem" ` +
+      `aria-label="${longDate(k)}${w ? `, ${w.toLowerCase()}` : ""}${VENUE ? `, ${esc(VENUE)}` : ""}">` +
+      `<span class="when"><span>${w || DAYS[d.getDay()].slice(0, 3)}</span>${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}</span>` +
+      `${VENUE ? `<span class="venue">${esc(VENUE)}</span>` : ""}</span>`;
   }).join("") : "";
   dockRow.scrollLeft = 0;
   fitDock();
@@ -1372,7 +1378,7 @@ function datesSheet() {
   }).join("") + `</ol></section>`).join("");
   openSheet(`
     <h2 id="sheetTitle">Karaoke nights</h2>
-    <p class="sub">${plural(ks.length, "night", "nights")} coming up. Come and sing.</p>
+    <p class="sub">${plural(ks.length, "night", "nights")} coming up${VENUE ? ` at ${esc(VENUE)}` : ""}. Come and sing.</p>
     <div class="cal">${cal}</div>
     <div class="acts stick"><button type="button" class="quiet" data-act="close">Close</button>
       <button type="button" class="go" data-act="share">Share the dates</button></div>`, el => {
