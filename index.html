@@ -29,7 +29,7 @@
   body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--ui);
        -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
   /* stage lighting: soft pink and cyan glows behind everything */
-  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;will-change:transform;
        background:radial-gradient(110% 55% at 15% -8%,var(--glow-a),transparent 62%),
                   radial-gradient(90% 50% at 100% 0,var(--glow-b),transparent 60%),var(--ground)}
   [hidden]{display:none!important}
@@ -230,8 +230,10 @@
                padding:10px 0 calc(18px + env(safe-area-inset-bottom));margin-bottom:calc(-18px - env(safe-area-inset-bottom))}
 
   /* ---------- dates dock: upcoming nights along the bottom ---------- */
+  /* Solid and on its own layer: a blurred, translucent bar had to be repainted every frame
+     while the page or the browser's toolbar moved, which stuttered on phones. */
   .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;border-top:1px solid var(--rail);animation:rise .5s .15s var(--spring) both;
-        background:rgba(8,4,15,.8);-webkit-backdrop-filter:saturate(1.5) blur(16px);backdrop-filter:saturate(1.5) blur(16px);
+        background:#0B0614;will-change:transform;
         padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
   .dock .wrap{display:flex;align-items:center;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;
               scroll-padding-inline:var(--pad);padding:0 var(--pad);scrollbar-width:none;overscroll-behavior-x:contain}
@@ -241,8 +243,11 @@
   .night{flex:0 0 auto;scroll-snap-align:start;padding:3px 10px;white-space:nowrap;font-size:13.5px;font-weight:700;
          border:1px solid var(--rail);border-radius:999px;background:var(--riser)}
   .night span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
-  .night.now{border-color:var(--part-a);box-shadow:inset 0 0 0 1px var(--part-a);animation:glow 2.6s ease-in-out infinite}
-  @keyframes glow{50%{box-shadow:inset 0 0 0 1px var(--part-a),0 0 16px rgba(237,31,97,.45)}}
+  /* Tonight's glow fades a pre-drawn halo in and out (opacity only), so the bar isn't repainted. */
+  .night.now{position:relative;border-color:var(--part-a);box-shadow:inset 0 0 0 1px var(--part-a)}
+  .night.now::after{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;opacity:0;
+                    box-shadow:0 0 16px rgba(237,31,97,.55);animation:glow 2.6s ease-in-out infinite;will-change:opacity}
+  @keyframes glow{50%{opacity:1}}
   .night.now span{color:var(--part-a)}
   .toast{position:fixed;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#0B0616;
          font-weight:600;font-size:14px;padding:10px 16px;border-radius:999px;pointer-events:none;white-space:nowrap;
@@ -256,7 +261,7 @@
   @keyframes slidein{from{translate:100% 0}}
   .page::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         background:radial-gradient(100% 45% at 85% -5%,var(--glow-a),transparent 60%)}
-  .page-top{position:sticky;top:0;background:rgba(8,4,15,.8);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:calc(8px + env(safe-area-inset-top)) var(--pad) 0;z-index:2}
+  .page-top{position:sticky;top:0;background:#0B0614;padding:calc(8px + env(safe-area-inset-top)) var(--pad) 0;z-index:2}
   .back{background:none;border:0;color:var(--dim);font-size:15px;font-weight:600;min-height:var(--tap);padding:0 12px 0 0}
   .page h1{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:4px 0 4px;overflow-wrap:anywhere}
   .page .sub{color:var(--dim);font-size:14px;margin:0 0 12px}
