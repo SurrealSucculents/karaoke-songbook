@@ -271,15 +271,17 @@ def cards(c, url, name, wifi=None):
                 qr(c, cx - size / 2, y0 + ch - 35 * mm - size, size, url)
                 few = [features()[i] for i in (0, 2, 4)]
                 bw = block_width(c, [(k, h, "") for k, h, _ in few], 10.5)
-                feature_list(c, cx - bw / 2, y0 + 45 * mm, few, 10.5, 8 * mm, detail=False)
-                centred(c, short(url), y0 + 10 * mm, "Helvetica-Bold", 12, cx=cx)
+                feature_list(c, cx - bw / 2, y0 + 50 * mm, few, 10.5, 8 * mm, detail=False)
+                centred(c, short(url), y0 + 20 * mm, "Helvetica-Bold", 12, cx=cx)
+                centred(c, "Or just come up and ask!", y0 + 9.5 * mm, "Helvetica-Bold", 16, ACCENT, cx=cx)
                 continue
             centred(c, name.upper(), y0 + ch - 11 * mm, "Helvetica-Bold", 8, FAINT, cx=cx, spacing=2.2)
             centred(c, "Find your song", y0 + ch - 20 * mm, "Helvetica-Bold", 19, cx=cx)
             centred(c, "Scan with your phone camera", y0 + ch - 26.5 * mm, "Helvetica", 10, DIM, cx=cx)
             size = 48 * mm
             qr(c, cx - size / 2, y0 + ch - 30 * mm - size, size, url)
-            centred(c, short(url), y0 + 45 * mm, "Helvetica-Bold", 11, cx=cx)
+            centred(c, short(url), y0 + 62 * mm, "Helvetica-Bold", 11, cx=cx)
+            centred(c, "Or just come up and ask!", y0 + 49 * mm, "Helvetica-Bold", 15, ACCENT, cx=cx)
             c.setFillColor(BOX)
             c.roundRect(x0 + 7 * mm, y0 + 7 * mm, cw - 14 * mm, 33 * mm, 3 * mm, stroke=0, fill=1)
             wifi_block(c, x0 + 10 * mm, y0 + 10 * mm, 27 * mm, wifi, scale=0.62)
