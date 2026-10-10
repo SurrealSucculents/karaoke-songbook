@@ -29,7 +29,7 @@
   body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--ui);
        -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
   /* stage lighting: soft pink and cyan glows behind everything */
-  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;will-change:transform;
+  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
        background:radial-gradient(110% 55% at 15% -8%,var(--glow-a),transparent 62%),
                   radial-gradient(90% 50% at 100% 0,var(--glow-b),transparent 60%),var(--ground)}
   [hidden]{display:none!important}
@@ -70,8 +70,9 @@
   .msg.stop{background:#2B0D1B;color:#FFC2D4;box-shadow:inset 2px 0 0 var(--part-a)}
 
   /* ---------- top ---------- */
-  /* The tabs, filters and count slide up behind the logo row as the guest scrolls down and
-     back down as they scroll up, following the finger. The header keeps its height in the page
+  /* The tabs, filters and count slide up behind the logo row when the guest scrolls down and
+     back when they scroll up. The slide is a CSS transition, so it runs on the compositor and
+     stays smooth however busy the page is. The header keeps its height in the page
      (it's just see-through where they were), so the list underneath never jumps. Each layer
      paints its own full-width background. */
   .top{position:sticky;top:0;z-index:5;pointer-events:none}
@@ -82,9 +83,8 @@
   .bar,.more{background:#0B0614;box-shadow:-100vw 0 #0B0614,100vw 0 #0B0614}
   .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
        padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid #0B0614;transition:border-color .2s}
-  .more{position:relative;z-index:1;will-change:transform}
-  .more.glide{transition:transform .35s var(--spring)}
-  .top.collapsed .more{pointer-events:none}
+  .more{position:relative;z-index:1;transition:transform .32s var(--spring)}
+  .top.collapsed .more{transform:translate3d(0,-100%,0);pointer-events:none}
   .top.collapsed .bar{border-bottom-color:var(--rail)}
   .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
         color:var(--dim);background:#0B0614;border:1px solid var(--rail);border-top:0;border-radius:0 0 12px 12px;
@@ -140,7 +140,10 @@
   .eyebrow .note{font-size:12.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint)}
 
   /* ---------- list ---------- */
-  .list{position:relative;margin:0 var(--pad)}
+  /* Containment: the list has a set height and every row a set size, so changing a row's text
+     never makes the browser re-lay out anything outside that row. */
+  .list{position:relative;margin:0 var(--pad);contain:size layout style}
+  #list .row{contain:strict}
   .list.has-rail{margin-right:34px}
   .row{position:absolute;left:0;right:0;height:var(--row);display:grid;grid-template-columns:1fr auto;
        gap:12px;align-items:center;padding:0 8px;margin:0 -6px;border-radius:10px;cursor:pointer;
@@ -632,7 +635,7 @@ let pool = new Map();   // position -> element
 let entering = false;   // rows drawn straight after a refresh fade in
 // Once a row has faded in, drop the class so it doesn't linger as its own layer.
 for (const id of ["list", "recsList", "artistList"])
-  $(id).addEventListener("animationend", e => e.target.classList?.remove("enter"));
+  $(id).addEventListener("animationend", e => { if (e.target.classList?.contains("enter")) { e.target._enter = false; e.target.classList.remove("enter"); } });
 
 function refresh(keepScroll) {
   view = compute();
@@ -658,7 +661,7 @@ function refresh(keepScroll) {
     : "Nothing matches those filters together. Try fewer filters.";
   $("emptyReset").hidden = none;
   list.style.height = view.length * ROW + "px";
-  for (const el of pool.values()) el.remove();
+  for (const el of pool.values()) { el.remove(); spare.push(el); }
   pool.clear();
   buildJump();
   if (!keepScroll) window.scrollTo(0, 0);
@@ -673,92 +676,100 @@ function label(btn, name, picked) {
     : picked.length === 1 ? picked[0] : `${picked[0]} +${picked.length - 1}`;
 }
 
-function rowFor(item, pos) {
+// Rows are built once and reused: one scrolling out of view becomes the next one scrolling in,
+// so a scroll changes a few text nodes and a transform rather than building elements.
+const spare = [];
+function makeRow() {
   const el = document.createElement("div");
   el.className = "row";
   el.setAttribute("role", "listitem");
+  el.innerHTML = `<span class="tx"><span class="t"></span><span class="a"></span></span>` +
+                 `<button type="button" class="quick"></button><span class="n"></span>`;
+  el._t = el.querySelector(".t"); el._a = el.querySelector(".a");
+  el._q = el.querySelector(".quick"); el._n = el.querySelector(".n");
+  return el;
+}
+function fillRow(el, pos) {
+  const item = view[pos];
+  el._pos = pos;
   el.style.transform = `translateY(${pos * ROW}px)`;
-  if (songMode()) {
-    el.innerHTML = `<span class="tx"><span class="t">${esc(item.t)}</span><span class="a">${esc(item.by)}</span></span>` +
-                   heartHTML(item);
-    el.onclick = () => songSheet(item);
-    wireHeart(el, item);
+  // Only touch what differs: every class or attribute change makes the browser restyle the row.
+  if (el._enter) { el._enter = false; el.classList.remove("enter"); el.style.animationDelay = ""; }
+  const songs = songMode();
+  if (el._songs !== songs) { el._songs = songs; el._q.hidden = !songs; el._n.hidden = songs; }
+  if (songs) {
+    el._t.textContent = item.t;
+    el._a.textContent = item.by;
+    heartSong.set(el._q, item);
+    if (el._pop) { el._pop = false; el._q.classList.remove("pop"); }
+    paintHeart(el._q);
   } else {
-    const g = item.a.genre >= 0 ? GENRES[item.a.genre] : "";
-    el.innerHTML = `<span class="tx"><span class="t">${esc(item.a.name)}</span><span class="a">${esc(g)}</span></span>` +
-                   `<span class="n">${fmt(item.n)}</span>`;
-    el.onclick = () => openArtist(item.a);
+    el._t.textContent = item.a.name;
+    el._a.textContent = item.a.genre >= 0 ? GENRES[item.a.genre] : "";
+    el._n.textContent = fmt(item.n);
   }
   return el;
 }
+list.addEventListener("click", e => {
+  const row = e.target.closest(".row"), item = row && view[row._pos];
+  if (!item) return;
+  if (e.target.closest(".quick")) heartTap(row._q, item, e);
+  else if (songMode()) songSheet(item);
+  else openArtist(item.a);
+});
 
 let raf = 0;
 function draw(listTop) {
   raf = 0;
   if ($("app").hidden) return;
   const top = listTop ?? list.getBoundingClientRect().top;
-  const first = Math.max(0, Math.floor(-top / ROW) - 8);
-  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + 8);
-  for (const [pos, el] of pool) if (pos < first || pos >= last) { el.remove(); pool.delete(pos); }
+  // A generous margin above and below the screen so a fast flick doesn't outrun the rows.
+  const first = Math.max(0, Math.floor(-top / ROW) - 12);
+  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + 12);
+  const free = [];
+  for (const [pos, el] of pool) if (pos < first || pos >= last) { free.push(el); pool.delete(pos); }
   const frag = document.createDocumentFragment();
   let k = 0;
   for (let pos = first; pos < last; pos++) {
     if (pool.has(pos)) continue;
-    const el = rowFor(view[pos], pos);
-    if (entering) {
-      el.classList.add("enter"); el.style.animationDelay = Math.min(k++, 14) * 24 + "ms";
-    }
-    pool.set(pos, el); frag.appendChild(el);
+    let el = free.pop();
+    if (!el) { el = spare.pop() || makeRow(); frag.appendChild(el); }
+    fillRow(el, pos);
+    if (entering) { el._enter = true; el.classList.add("enter"); el.style.animationDelay = Math.min(k++, 14) * 24 + "ms"; }
+    pool.set(pos, el);
   }
+  for (const el of free) { el.remove(); spare.push(el); }
   entering = false;
-  list.appendChild(frag);
+  if (frag.firstChild) list.appendChild(frag);
 }
 
 const top = $("top"), bar = top.querySelector(".bar"), more = $("more"), chev = $("chev");
-// hide: how many pixels of the tabs/filters/count are tucked behind the logo row.
-// Runs every frame while scrolling, so it only moves a composited layer: sizes are measured
-// when they change (not per frame), and classes, attributes and the A–Z rail are touched
-// only when it flips between open and shut.
-let hide = 0, lastY = 0, snapTimer = 0;
-let topH = 0, moreH = 0, barH = 0, shut = false, gliding = false;
+// Scrolling only flips a class when the direction changes; nothing moves frame by frame.
+let lastY = 0, travel = 0;
+let topH = 0, moreH = 0, barH = 0, shut = false;
 function measureHeader() {
   topH = top.offsetHeight; moreH = more.offsetHeight; barH = bar.offsetHeight;
-  if (hide > moreH) hide = moreH;
   placeJump();
 }
 new ResizeObserver(measureHeader).observe(top);
-function setHide(h, glide) {
-  glide = !!glide;
-  if (glide !== gliding) { gliding = glide; more.classList.toggle("glide", glide); }
-  if (h === hide) return;
-  hide = h;
-  more.style.transform = `translate3d(0,${-h}px,0)`;
-  const s = h > 0 && h >= moreH - 1;
-  if (s !== shut) {
-    shut = s;
-    top.classList.toggle("collapsed", s);
-    chev.setAttribute("aria-expanded", !s);
-    placeJump();
-  }
+function setShut(s) {
+  if (s === shut) return;
+  shut = s;
+  top.classList.toggle("collapsed", s);
+  chev.setAttribute("aria-expanded", !s);
+  placeJump();
 }
-// Moves with each scroll: down tucks the rows away, up brings them back at the finger's pace.
-// It never tucks away more than has been scrolled, so at the top of the page it's always fully
-// open and there's never a gap above the first song.
+// Open near the top of the page (so there's never a gap above the first song); further down,
+// tuck away after ~24px of scrolling down and come back after ~24px of scrolling up.
 function followScroll(scrolled) {
   const y = Math.max(0, scrolled), dy = y - lastY;
   lastY = y;
-  const next = Math.min(moreH, y, Math.max(0, hide + dy));
-  if (next !== hide) setHide(next);
-  clearTimeout(snapTimer);
-  snapTimer = setTimeout(settle, 180);
+  if (y < moreH) { travel = 0; setShut(false); return; }
+  travel = dy > 0 === travel > 0 ? travel + dy : dy;
+  if (travel > 24) setShut(true);
+  else if (travel < -24) setShut(false);
 }
-// Left part-way when the scrolling stops, it settles to whichever end is nearer.
-function settle() {
-  const h = moreH;
-  if (hide <= 0 || hide >= h) return;
-  setHide(hide > h / 2 && scrollY >= h ? h : 0, true);
-}
-chev.onclick = () => setHide(0, true);
+chev.onclick = () => { travel = 0; setShut(false); };
 // One handler per frame while scrolling: read the scroll and list positions first, then move
 // the header and draw rows. Reading after writing would force the page to lay out mid-frame.
 let frame = 0;
@@ -1116,20 +1127,20 @@ const heartHTML = s => `<button type="button" class="quick" aria-pressed="${isFa
   `aria-label="${isFav(s) ? "Remove" : "Save"} ${esc(s.t)}">${isFav(s) ? "♥" : "♡"}</button>`;
 function paintHeart(b) {
   const s = heartSong.get(b), on = isFav(s);
-  b.setAttribute("aria-pressed", on);
+  if (b._on !== on) { b._on = on; b.setAttribute("aria-pressed", on); b.textContent = on ? "♥" : "♡"; }
   b.setAttribute("aria-label", `${on ? "Remove" : "Save"} ${s.t}`);
-  b.textContent = on ? "♥" : "♡";
+}
+function heartTap(b, s, e) {
+  e.stopPropagation();
+  toggleFav(s);
+  paintHeart(b);
+  if (isFav(s)) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); b.closest(".row") && (b.closest(".row")._pop = true); toast("Saved to your favourites"); }
+  if (state.tab === "saved") refresh(true);
 }
 function wireHeart(row, s) {
   const b = row.querySelector(".quick");
   heartSong.set(b, s);
-  b.onclick = e => {
-    e.stopPropagation();
-    toggleFav(s);
-    paintHeart(b);
-    if (isFav(s)) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); toast("Saved to your favourites"); }
-    if (state.tab === "saved") refresh(true);
-  };
+  b.onclick = e => heartTap(b, s, e);
 }
 // After saving from a song card, bring the artist page's hearts up to date.
 const syncHearts = () => document.querySelectorAll("#artistList .quick").forEach(paintHeart);
