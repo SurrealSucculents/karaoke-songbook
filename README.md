@@ -147,7 +147,9 @@ nothing is sent anywhere.
 
 **Fine tune my recommendations** (the sliders button next to Share) asks the
 decade the guest was born, whether they like songs sung by men, women or duets,
-and how high they sing (very high, high, medium, low, very low). Each is
+and how high they sing (very high, high, medium, low, very low, each with its
+voice type: high tenor, tenor, baritone, bass-baritone, bass for men; high
+soprano, soprano, mezzo-soprano, alto, contralto for women). Each is
 optional. For you then favours songs from their teens and twenties, leaves out
 songs by the other sex (duets stay in), and favours singers who sing as high as
 they do, or one step either side. Each level shows an example singer ("like Phil
