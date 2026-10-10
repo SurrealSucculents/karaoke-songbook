@@ -68,12 +68,14 @@
              border:1px solid var(--rail);border-radius:var(--r);background:transparent;color:var(--dim);
              white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tabs button.on,.filters button.on{background:var(--lift);border-color:var(--edge);color:var(--ink)}
+  .tabs .heart{color:var(--part-a);margin-right:3px}
+  .eyebrow .quiet{margin-left:auto;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;min-height:0;padding:0}
   .filters{display:flex;gap:var(--gap);padding:8px var(--pad) 0}
   .filters button{font-weight:500}
   .filters button .caret{color:var(--faint);margin-left:4px}
   .filters button.clear{flex:0 0 auto;padding:9px 14px;border-color:transparent;color:var(--dim);
                         text-decoration:underline;text-underline-offset:3px}
-  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  .eyebrow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
            padding:14px var(--pad) 6px;border-bottom:1px solid var(--rail);font-variant-numeric:tabular-nums}
 
   /* ---------- list ---------- */
@@ -86,6 +88,7 @@
   .t,.a{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .t{font-size:16px;font-weight:600;line-height:1.25}
   .a{font-size:13px;color:var(--dim);margin-top:2px}
+  .yr .heart{font-family:var(--ui);color:var(--part-a);margin-right:6px;font-size:13px}
   .yr{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--faint);letter-spacing:.02em}
   .n{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--faint)}
   .n::after{content:" ›";font-family:var(--ui);font-size:17px;color:var(--faint)}
@@ -134,6 +137,17 @@
   .scrim.modal .grab{display:none}
   @keyframes pop{from{transform:scale(.96);opacity:.4}}
   @media (prefers-reduced-motion:reduce){.scrim.modal .sheet{animation:none}}
+  .head{display:flex;gap:12px;align-items:flex-start}
+  .head > div{flex:1;min-width:0;display:grid;gap:6px}
+  .head .sub{margin:0}
+  .fav{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;font-size:14px;
+       font-weight:600;border:1px solid var(--edge);border-radius:999px;background:transparent;color:var(--ink)}
+  .fav b{color:var(--dim);font-size:16px;line-height:1}
+  .fav[aria-pressed="true"]{background:var(--part-a);border-color:var(--part-a);color:#fff}
+  .fav[aria-pressed="true"] b{color:#fff}
+  .shared{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
+  .shared li{padding:9px 2px;border-bottom:1px solid var(--rail);font-weight:600;font-size:15px}
+  .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
   .ask{background:var(--lift);border:1px solid var(--edge);border-radius:var(--r);padding:14px 15px;
        box-shadow:inset 3px 0 0 var(--live)}
   .ask h3{margin:0 0 8px;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
@@ -207,6 +221,7 @@
       <nav class="tabs" aria-label="View">
         <button type="button" class="on" data-tab="songs" aria-pressed="true">Songs</button>
         <button type="button" data-tab="artists" aria-pressed="false">Artists</button>
+        <button type="button" data-tab="saved" aria-pressed="false"><span class="heart" aria-hidden="true">♥</span>Saved</button>
       </nav>
       <div class="filters">
         <button type="button" id="fGenre" aria-haspopup="dialog">Genre<span class="caret">▾</span></button>
@@ -214,13 +229,14 @@
         <button type="button" id="fVoice" aria-haspopup="dialog" hidden>Singer<span class="caret">▾</span></button>
         <button type="button" class="clear" id="fClear" hidden>Clear</button>
       </div>
-      <div class="eyebrow" id="summary" aria-live="polite"></div>
+      <div class="eyebrow"><span id="summary" aria-live="polite"></span>
+        <button class="quiet" type="button" id="favShare" hidden>Share my list</button></div>
     </div>
   </header>
   <div class="wrap">
     <div class="list" id="list" role="list"></div>
     <div class="empty" id="empty" hidden>
-      <b>Nothing matches that</b>
+      <b id="emptyHead">Nothing matches that</b>
       <span id="emptyWhy">Try a different spelling, or fewer filters.</span>
       <button class="quiet" type="button" id="emptyReset">Clear search and filters</button>
     </div>
@@ -318,6 +334,25 @@ async function openBook() {
 }
 gateGo.onclick = openBook;
 
+/* ================================================================ favourites */
+
+// Saved on this device only (localStorage). Keyed by title and artist, not list position,
+// so favourites survive the song list being rebuilt.
+const FAV_KEY = "mdk-favourites";
+const favKey = s => s.t + "\n" + s.by;
+let FAVS = new Set();
+try { FAVS = new Set(JSON.parse(localStorage.getItem(FAV_KEY)) || []); } catch {}
+function saveFavs() {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); } catch {}
+  // Asks the browser not to clear them when space runs low; quietly ignored where unsupported.
+  navigator.storage?.persist?.().catch(() => {});
+}
+const isFav = s => FAVS.has(favKey(s));
+function toggleFav(s) {
+  isFav(s) ? FAVS.delete(favKey(s)) : FAVS.add(favKey(s));
+  saveFavs();
+}
+
 /* ================================================================ app */
 
 let SONGS = [], ARTISTS = [], GENRES = [], NIGHTS = [];
@@ -362,13 +397,22 @@ function start(data, nights) {
   buildDock();
   refresh();
   if (p.has("song")) {
-    const t = p.get("song"), by = p.get("by") || "";
-    const s = SONGS.find(s => s.t === t && (!by || s.by === by)) ||
-              SONGS.find(s => s.ft === fold(t) && (!by || s.fa === fold(by)));
+    const s = findSong(p.get("song"), p.get("by") || "");
     if (s) songSheet(s);
+  } else if (p.has("t")) {
+    const bys = p.getAll("b");
+    const found = p.getAll("t").map((t, i) => findSong(t, bys[i] || "")).filter(Boolean);
+    if (found.length) sharedFavsSheet([...new Set(found)]);
   } else if (p.has("dates") && upcoming().length) {
     datesSheet();
   }
+}
+
+const songMode = () => state.tab !== "artists";
+
+function findSong(t, by) {
+  return SONGS.find(s => s.t === t && (!by || s.by === by)) ||
+         SONGS.find(s => s.ft === fold(t) && (!by || s.fa === fold(by)));
 }
 
 function anyFilter() { return state.genres.size || state.decades.size || state.voices.size; }
@@ -405,9 +449,11 @@ function matcher(q) {
 
 function compute() {
   const m = matcher(state.q);
-  if (state.tab === "songs") {
+  if (songMode()) {
+    const saved = state.tab === "saved";
     let out = [];
     for (const s of SONGS) {
+      if (saved && !isFav(s)) continue;
       if (!passes(s)) continue;
       const score = m ? m.song(s) : 0;
       if (score >= 0) out.push([score, s]);
@@ -435,19 +481,26 @@ let pool = new Map();   // position -> element
 function refresh(keepScroll) {
   view = compute();
   const filtered = anyFilter();
-  const noun = state.tab === "songs" ? ["song", "songs"] : ["artist", "artists"];
+  const saved = state.tab === "saved";
+  const noun = saved ? ["saved song", "saved songs"] : songMode() ? ["song", "songs"] : ["artist", "artists"];
   let summary = plural(view.length, ...noun);
   if (state.q.trim()) summary += ` for “${state.q.trim()}”`;
   $("summary").textContent = summary;
+  $("favShare").hidden = !saved || !FAVS.size;
   $("qx").hidden = !state.q;
   $("fClear").hidden = !filtered;
   label($("fGenre"), "Genre", [...state.genres].map(g => GENRES[g]));
   label($("fDecade"), "Decade", [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
   label($("fVoice"), "Singer", [...VOICES.keys()].filter(v => state.voices.has(v)).map(v => VOICES[v]));
   $("empty").hidden = view.length > 0;
-  $("emptyWhy").textContent = state.q.trim()
+  const none = saved && !FAVS.size;
+  $("emptyHead").textContent = none ? "No favourites yet" : "Nothing matches that";
+  $("emptyWhy").textContent = none
+    ? "Tap a song, then Save. Your favourites stay on this phone for next time."
+    : state.q.trim()
     ? "Try a different spelling, or just part of the title."
     : "Nothing matches those filters together. Try fewer filters.";
+  $("emptyReset").hidden = none;
   list.style.height = view.length * ROW + "px";
   for (const el of pool.values()) el.remove();
   pool.clear();
@@ -467,9 +520,9 @@ function rowFor(item, pos) {
   el.className = "row";
   el.setAttribute("role", "listitem");
   el.style.transform = `translateY(${pos * ROW}px)`;
-  if (state.tab === "songs") {
+  if (songMode()) {
     el.innerHTML = `<span class="tx"><span class="t">${esc(item.t)}</span><span class="a">${esc(item.by)}</span></span>` +
-                   `<span class="yr">${item.y || ""}</span>`;
+                   `<span class="yr">${isFav(item) ? `<span class="heart" aria-label="Saved">♥</span>` : ""}${item.y || ""}</span>`;
     el.onclick = () => songSheet(item);
   } else {
     const g = item.a.genre >= 0 ? GENRES[item.a.genre] : "";
@@ -505,7 +558,7 @@ function buildJump() {
   const searching = state.q.trim().length > 0;
   if (!searching) {
     view.forEach((item, pos) => {
-      const l = state.tab === "songs" ? item.letter : item.a.letter;
+      const l = songMode() ? item.letter : item.a.letter;
       if (!firstAt.has(l)) firstAt.set(l, pos);
     });
   }
@@ -575,7 +628,8 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tabs button").forEach(x => {
     x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
   });
-  q.placeholder = state.tab === "songs" ? "Search songs or artists" : "Search artists";
+  q.placeholder = state.tab === "songs" ? "Search songs or artists"
+    : state.tab === "saved" ? "Search your favourites" : "Search artists";
   refresh();
 });
 
@@ -605,8 +659,10 @@ addEventListener("keydown", e => { if (e.key === "Escape") { if (!scrim.hidden) 
 
 function countBy(fn, size) {
   const c = new Array(size).fill(0);
-  const m = matcher(state.tab === "songs" ? state.q : "");
+  const m = matcher(songMode() ? state.q : "");
+  const saved = state.tab === "saved";
   for (const s of SONGS) {
+    if (saved && !isFav(s)) continue;
     if (m && m.song(s) < 0) continue;
     const k = fn(s);
     if (k >= 0) c[k]++;
@@ -641,7 +697,7 @@ function pickerSheet(kind) {
       set.clear(); draft.forEach(v => set.add(v));
       const n = compute().length;
       set.clear(); saved.forEach(v => set.add(v));
-      const noun = state.tab === "songs" ? ["song", "songs"] : ["artist", "artists"];
+      const noun = songMode() ? ["song", "songs"] : ["artist", "artists"];
       go.textContent = n ? `Show ${plural(n, ...noun)}` : `No ${noun[1]} match`;
       go.disabled = !n;
     };
@@ -671,8 +727,8 @@ function songSheet(s, onArtistPage) {
   if (s.v >= 0) facts.push(`<span class="fact">${esc(VOICES[s.v])}</span>`);
   const all = onArtistPage ? 0 : s.artist.songs.length;
   openSheet(`
-    <h2 id="sheetTitle">${esc(s.t)}</h2>
-    <p class="sub">${esc(s.by)}</p>
+    <div class="head"><div><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div>
+      <button type="button" class="fav" data-act="fav"></button></div>
     <div class="ask">
       <h3>Ask the host to put you on</h3>
       <p>They will need:</p>
@@ -689,6 +745,16 @@ function songSheet(s, onArtistPage) {
     el => {
       el.querySelector('[data-act="close"]').onclick = () => closeSheet();
       el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
+      const fav = el.querySelector('[data-act="fav"]');
+      const show = () => {
+        fav.setAttribute("aria-pressed", isFav(s));
+        fav.innerHTML = isFav(s) ? `<b aria-hidden="true">♥</b>Saved` : `<b aria-hidden="true">♡</b>Save`;
+      };
+      fav.onclick = () => {
+        toggleFav(s); show(); refresh(true);
+        if (isFav(s)) toast("Saved to your favourites");
+      };
+      show();
       const a = el.querySelector('[data-act="artist"]');
       // The sheet's history entry becomes the artist page's, so Back goes to the list.
       if (a) a.onclick = () => {
@@ -743,6 +809,43 @@ const shareDates = () => share({
   url: HOME + "?dates",
 });
 $("shareBook").onclick = shareBook;
+
+// The list travels in the link itself, so it also works as a backup: open it on any phone to save them again.
+function shareFavs() {
+  const songs = SONGS.filter(isFav);
+  const p = new URLSearchParams();
+  for (const s of songs) { p.append("t", s.t); p.append("b", s.by); }
+  share({
+    title: "My Mad Dog Karaoke favourites",
+    text: "My Mad Dog Karaoke favourites:\n" + songs.map(s => `${s.t} – ${s.by}`).join("\n"),
+    url: `${HOME}?${p}`,
+  });
+}
+$("favShare").onclick = shareFavs;
+
+function sharedFavsSheet(songs) {
+  const fresh = () => songs.filter(s => !isFav(s)).length;
+  openSheet(`
+    <h2 id="sheetTitle">Favourites shared with you</h2>
+    <p class="sub">${plural(songs.length, "song", "songs")}. Save them to keep them on this phone.</p>
+    <ol class="shared">${songs.map(s => `<li>${esc(s.t)}<span>${esc(s.by)}</span></li>`).join("")}</ol>
+    <div class="acts stick"><button type="button" class="quiet" data-act="close">Close</button>
+      <button type="button" class="go" data-act="save"></button></div>`, el => {
+    const go = el.querySelector('[data-act="save"]');
+    const show = () => {
+      const n = fresh();
+      go.textContent = n ? `Save ${n === songs.length && n > 1 ? "all " : ""}${plural(n, "song", "songs")}` : "All in your favourites";
+      go.disabled = !n;
+    };
+    el.querySelector('[data-act="close"]').onclick = () => closeSheet();
+    go.onclick = () => {
+      for (const s of songs) FAVS.add(favKey(s));
+      saveFavs(); show(); refresh(true);
+      toast("Saved to your favourites");
+    };
+    show();
+  });
+}
 
 /* ---------------------------------------------------------------- karaoke nights */
 

@@ -117,6 +117,17 @@ dates** (on a shared dates link) use the phone's own share menu (WhatsApp, Messa
 where there isn't one. Shared links open straight onto the song
 (`?song=…&by=…`) or the list of dates (`?dates`).
 
+## Favourites
+
+Tap a song, then **Save**, and it shows up under the **Saved** tab and with a ♥
+in the list. Favourites are kept in the browser on that phone (`localStorage`),
+so there are no accounts and nothing is sent anywhere. They stay until the
+guest clears their browser data. Safari on iPhone can clear a site's stored data
+after about 7 days of use without a visit, so **Share my list** on the Saved tab
+sends a link with the songs in it: opening it on any phone offers to save them
+again. Saved songs are matched by title and artist, so rebuilding the song
+list doesn't lose them.
+
 ## Files
 
 | | |
