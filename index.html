@@ -163,7 +163,6 @@
      never makes the browser re-lay out anything outside that row. */
   .list{position:relative;margin:0 var(--pad);contain:size layout style}
   #list .row{contain:strict}
-  .list.has-rail{margin-right:34px}
   .row{position:absolute;left:0;right:0;height:var(--row);display:grid;grid-template-columns:1fr auto;
        gap:12px;align-items:center;padding:0 8px;margin:0 -6px;border-radius:10px;cursor:pointer;
        transition:background-color .2s}
@@ -182,16 +181,6 @@
          animation:rise .4s var(--spring) both}
   .empty b{color:var(--ink);font-size:17px}
 
-  /* A–Z jump rail, like a phone's contacts */
-  .jump{position:fixed;right:max(2px,env(safe-area-inset-right));width:30px;z-index:4;display:flex;
-        flex-direction:column;justify-content:space-between;touch-action:none;user-select:none;-webkit-user-select:none}
-  .jump span{flex:1;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;
-             color:var(--dim);min-height:0;line-height:1}
-  .jump span.off{color:var(--rail)}
-  .bubble{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:22px;
-          background:var(--riser);border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;
-          font-size:44px;font-weight:800;z-index:9;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.5);
-          animation:pop .2s var(--spring)}
 
   /* ---------- sheets ---------- */
   .scrim{position:fixed;inset:0;background:rgba(5,2,8,.68);z-index:20;display:flex;align-items:flex-end;justify-content:center;
@@ -424,8 +413,6 @@
       <button class="quiet" type="button" id="emptyReset">Clear search and filters</button>
     </div>
   </div>
-  <nav class="jump" id="jump" aria-label="Jump to letter" hidden></nav>
-  <div class="bubble" id="bubble" hidden></div>
   <aside class="dock" id="dock" aria-label="Upcoming karaoke nights" hidden><div class="wrap" id="dockRow" role="list"></div></aside>
 </div>
 
@@ -668,7 +655,7 @@ function compute() {
     }
     if (m) out.sort((a, b) => a[0] - b[0] || a[1].i - b[1].i);
     const songs = out.map(x => x[1]);
-    // Saved songs are pinned in their own section at the top (and stay in their A–Z place too).
+    // Saved songs are pinned in their own section at the top (and stay in their place in the list too).
     const mine = m ? [] : songs.filter(isFav);
     if (!mine.length) return songs;
     return [{label: "Your saved songs", note: "Saved in this browser"}, ...mine.map(s => ({pin: s})),
@@ -687,7 +674,7 @@ function compute() {
 
 /* ---------------------------------------------------------------- list */
 
-const list = $("list"), jump = $("jump"), bubble = $("bubble");
+const list = $("list");
 const ROW = 62;
 const OVERSCAN = 24;   // rows drawn beyond each edge of the screen
 let pool = new Map();   // position -> element
@@ -731,7 +718,6 @@ function refresh(keepScroll) {
   list.style.height = view.length * ROW + "px";
   for (const el of pool.values()) { el.remove(); spare.push(el); }
   pool.clear();
-  buildJump();
   if (!keepScroll) window.scrollTo(0, 0);
   entering = !keepScroll && MOTION;
   draw();
@@ -826,7 +812,6 @@ function measureHeader() {
   if (b !== barH) { barH = b; top.style.setProperty("--bar-h", b + "px"); }
   topH = top.offsetHeight; moreH = more.offsetHeight;
   $("app").style.paddingTop = topH + 1 + "px";   // room for the fixed header and its hairline
-  placeJump();
 }
 const headerSizes = new ResizeObserver(measureHeader);
 headerSizes.observe(top); headerSizes.observe(bar);
@@ -859,70 +844,6 @@ function onFrame() {
 }
 addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onFrame); }, {passive: true});
 addEventListener("resize", () => { fitDock(); draw(); });
-
-/* ---------------------------------------------------------------- A–Z */
-
-let firstAt = new Map();
-function buildJump() {
-  firstAt = new Map();
-  const searching = state.q.trim().length > 0;
-  if (!searching) {
-    view.forEach((item, pos) => {
-      if (item.label || item.pin) return;
-      const l = songMode() ? item.letter : item.a.letter;
-      if (!firstAt.has(l)) firstAt.set(l, pos);
-    });
-  }
-  const show = !searching && view.length > 60 && state.tab !== "foryou";
-  jump.hidden = !show;
-  list.classList.toggle("has-rail", show);
-  if (!show) return;
-  jump.innerHTML = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
-    .map(l => `<span class="${firstAt.has(l) ? "" : "off"}" data-l="${l}">${l}</span>`).join("");
-  placeJump();
-}
-// The rail sits just below the full header (and its hairline) and stays put when the header
-// opens or shuts: nothing about it changes while scrolling.
-function placeJump() {
-  jump.style.top = topH + 7 + "px";
-  jump.style.bottom = dockH ? dockH + 10 + "px" : "calc(10px + env(safe-area-inset-bottom))";
-}
-function jumpTo(l) {
-  const letters = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
-  let i = letters.indexOf(l);
-  while (i < letters.length && !firstAt.has(letters[i])) i++;   // empty letter: next one that has songs
-  if (i >= letters.length) return;
-  const pos = firstAt.get(letters[i]);
-  const listTop = list.getBoundingClientRect().top + scrollY;
-  // Any jump lands far enough down that the header is collapsed to the logo row.
-  window.scrollTo(0, listTop + pos * ROW - barH - 1);   // 1: the hairline under it
-  clearTimeout(bubbleTimer);
-  bubble.textContent = l; bubble.hidden = false;
-}
-function scrub(e) {
-  const p = e.touches ? e.touches[0] : e;
-  const el = document.elementFromPoint(jump.getBoundingClientRect().left + 15, p.clientY);
-  if (el && el.dataset && el.dataset.l) jumpTo(el.dataset.l);
-}
-let scrubbing = false;
-jump.addEventListener("pointerdown", e => {
-  scrubbing = true;
-  try { jump.setPointerCapture(e.pointerId); } catch {}
-  scrub(e);
-});
-jump.addEventListener("pointermove", e => { if (scrubbing) scrub(e); });
-let bubbleTimer = 0;
-const endScrub = () => {
-  scrubbing = false;
-  clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(() => (bubble.hidden = true), 250);
-};
-// iOS Safari doesn't always deliver pointerup to the rail (pointer capture can be lost when the
-// page scrolls under the finger), so listen for every way a gesture can end, window-wide.
-for (const t of ["pointerup", "pointercancel", "touchend", "touchcancel"]) addEventListener(t, endScrub, {passive: true});
-jump.addEventListener("lostpointercapture", endScrub);
-addEventListener("blur", endScrub);
-document.addEventListener("visibilitychange", endScrub);
 
 /* ---------------------------------------------------------------- controls */
 
@@ -1365,11 +1286,10 @@ function buildDock() {
   dockRow.scrollLeft = 0;
   fitDock();
 }
-// Keep the list's last rows and the A–Z rail clear of the dock.
+// Keep the list's last rows clear of the dock.
 function fitDock() {
   dockH = dock.hidden || $("app").hidden ? 0 : dock.offsetHeight;
   $("app").style.paddingBottom = dockH ? dockH + "px" : "";
-  placeJump();
 }
 // A page left open overnight drops last night's date.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("app").hidden) buildDock(); });
