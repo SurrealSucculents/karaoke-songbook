@@ -172,7 +172,7 @@
   .chip.on{background:rgba(237,31,97,.14);border-color:rgba(237,31,97,.6);color:var(--ink)}
   .chip.on i{color:var(--dim)}
   .chip[disabled]{opacity:.35;cursor:default}
-  .acts{display:flex;gap:12px;align-items:center}
+  .acts{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
   .acts .go{flex:1}
   .acts .go.small{flex:0 0 auto;width:auto;margin-left:auto;min-height:40px;padding:9px 16px;font-size:14px;white-space:nowrap}
 
@@ -835,7 +835,7 @@ function songSheet(s, onArtistPage) {
     <p class="ask">Show this to the host with your first name.</p>
     <div class="acts"><button type="button" class="quiet" data-act="close">Close</button>
       <button type="button" class="quiet" data-act="share">Share</button>
-      ${all > 1 ? `<button type="button" class="go small" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">All ${fmt(all)} songs ›</button>` : ""}</div>`,
+      ${all > 1 ? `<button type="button" class="go small" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs</button>` : ""}</div>`,
     el => {
       el.querySelector('[data-act="close"]').onclick = () => closeSheet();
       el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
