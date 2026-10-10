@@ -119,6 +119,23 @@
   .fact{font-size:13px;color:var(--dim);border:1px solid var(--rail);border-radius:var(--r);padding:6px 10px}
   .fact b{font-family:var(--num);font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
 
+  /* song modal: centred card instead of a bottom sheet */
+  .scrim.modal{align-items:center;padding:16px}
+  .scrim.modal .sheet{border:1px solid var(--rail);border-radius:var(--r-lg);max-height:calc(100svh - 32px);
+                      padding:22px 20px 18px;animation:pop .16s ease-out}
+  .scrim.modal .grab{display:none}
+  @keyframes pop{from{transform:scale(.96);opacity:.4}}
+  @media (prefers-reduced-motion:reduce){.scrim.modal .sheet{animation:none}}
+  .ask{background:var(--lift);border:1px solid var(--edge);border-radius:var(--r);padding:14px 15px;
+       box-shadow:inset 3px 0 0 var(--live)}
+  .ask h3{margin:0 0 8px;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+  .ask p{margin:0 0 8px;font-size:14px;color:var(--dim)}
+  .ask ol{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+  .ask li{display:grid;grid-template-columns:7.2em 1fr;gap:8px;font-size:14.5px;align-items:baseline}
+  .ask li span{color:var(--dim);font-size:13px}
+  .ask li b{font-weight:600;overflow-wrap:anywhere}
+  .ask li i{font-style:normal;color:var(--faint)}
+
   /* ---------- artist page ---------- */
   .page{position:fixed;inset:0;z-index:10;background:var(--ground);overflow:auto;-webkit-overflow-scrolling:touch}
   .page-top{position:sticky;top:0;background:var(--ground);padding:calc(8px + env(safe-area-inset-top)) var(--pad) 0;z-index:2}
@@ -188,7 +205,7 @@
 </section>
 
 <div class="scrim" id="scrim" hidden>
-  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div>
 </div>
 
 <script>
@@ -502,7 +519,8 @@ $("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); s
 /* ---------------------------------------------------------------- sheets */
 
 const scrim = $("scrim"), sheet = $("sheet");
-function openSheet(html, wire) {
+function openSheet(html, wire, modal) {
+  scrim.classList.toggle("modal", !!modal);
   sheet.innerHTML = `<div class="grab"></div>` + html;
   scrim.hidden = false;
   document.body.style.overflow = "hidden";
@@ -546,7 +564,7 @@ function pickerSheet(kind) {
   const chips = order.map(i => `<button type="button" class="chip${draft.has(i) ? " on" : ""}" data-i="${i}"` +
     `${counts[i] ? "" : " disabled"} aria-pressed="${draft.has(i)}">${esc(names[i])}<i>${fmt(counts[i])}</i></button>`).join("");
   openSheet(`
-    <h2>${isGenre ? "Pick genres" : isVoice ? "Pick singer type" : "Pick decades"}</h2>
+    <h2 id="sheetTitle">${isGenre ? "Pick genres" : isVoice ? "Pick singer type" : "Pick decades"}</h2>
     <p class="sub">Pick as many as you like.</p>
     <div class="chips">${chips}</div>
     <div class="acts"><button type="button" class="quiet" data-act="none">Clear</button>
@@ -587,8 +605,17 @@ function songSheet(s, onArtistPage) {
   if (s.v >= 0) facts.push(`<span class="fact">${esc(VOICES[s.v])}</span>`);
   const all = onArtistPage ? 0 : s.artist.songs.length;
   openSheet(`
-    <h2>${esc(s.t)}</h2>
+    <h2 id="sheetTitle">${esc(s.t)}</h2>
     <p class="sub">${esc(s.by)}</p>
+    <div class="ask">
+      <h3>Ask the host to put you on</h3>
+      <p>They will need:</p>
+      <ol>
+        <li><span>Song title</span><b>${esc(s.t)}</b></li>
+        <li><span>Artist</span><b>${esc(s.by)}</b></li>
+        <li><span>Your first name</span><i>Tell the host</i></li>
+      </ol>
+    </div>
     ${facts.length ? `<div class="facts">${facts.join("")}</div>` : ""}
     <div class="acts"><button type="button" class="quiet" data-act="close">Close</button>
       ${all > 1 ? `<button type="button" class="go" data-act="artist">All ${fmt(all)} songs by ${esc(s.artist.name)}</button>` : ""}</div>`,
@@ -600,7 +627,7 @@ function songSheet(s, onArtistPage) {
         scrim.hidden = true; document.body.style.overflow = "";
         openArtist(s.artist, true);
       };
-    });
+    }, true);
 }
 
 /* ---------------------------------------------------------------- artist page */
