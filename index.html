@@ -320,7 +320,7 @@
     <div class="list" id="list" role="list"></div>
     <section class="recs" id="recs" hidden aria-labelledby="recsTitle">
       <div class="recs-head"><h2 id="recsTitle">Recommended <em>for you</em></h2>
-        <button class="quiet" type="button" id="recsMore">Show different ones</button></div>
+        <button class="quiet" type="button" id="recsMore">Refresh</button></div>
       <p class="sub">Picked from the songs you've saved.</p>
       <div class="plain" id="recsList" role="list"></div>
     </section>
@@ -982,7 +982,7 @@ const syncHearts = () => document.querySelectorAll("#artistList .quick").forEach
 // There are no play counts, so this leans on what each song is: songs that share the
 // artist, genre, decade and singer type of the guest's favourites score highest, and
 // acts with a big catalogue (a fair sign of a karaoke staple) get a nudge. A little
-// seeded randomness keeps the list fresh day to day, and "Show different ones" reshuffles.
+// seeded randomness keeps the list fresh day to day, and "Refresh" reshuffles.
 let recSeed = Math.floor(Date.now() / 864e5);
 function jitter(i) {
   let x = Math.imul(i + 1, 2654435761) ^ recSeed;

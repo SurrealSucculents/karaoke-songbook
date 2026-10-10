@@ -134,7 +134,7 @@ no play counts, so it matches on what each song is: the same acts, genres,
 decades and singer types as their favourites, with a nudge for acts that have a
 big catalogue. It alternates more from acts they've saved with acts new to them
 (at most two songs from any act already saved, one from a new act), changes a
-little each day, and **Show different ones** reshuffles. It all runs on the
+little each day, and **Refresh** reshuffles. It all runs on the
 phone; nothing is sent anywhere.
 
 ## Files
