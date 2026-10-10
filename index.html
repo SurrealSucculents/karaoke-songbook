@@ -216,6 +216,12 @@
   .acts{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
   /* fine-tune sheet: one labelled group of chips per question */
   .ask-group{display:grid;gap:8px}
+  /* "How high you sing": one row per level, with an example singer on the right */
+  .ask-group[data-key="voice"] .chips{display:grid;gap:6px}
+  .ask-group[data-key="voice"] .chip{align-items:center;gap:12px;text-align:left}
+  .chip small{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+              font-size:13px;font-weight:500;color:var(--faint)}
+  .chip.on small{color:var(--dim)}
   .ask-group h3{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
   .acts .go{flex:1}
   .acts .go.small{flex:0 0 auto;width:auto;margin-left:auto;min-height:40px;padding:9px 16px;font-size:14px;white-space:nowrap}
@@ -612,6 +618,8 @@ function start(data, schedule) {
     return s;
   });
   for (const a of ARTISTS) {
+    const m = a.songs.filter(s => s.v === 0).length, f = a.songs.filter(s => s.v === 1).length;
+    a.sex = m || f ? (m >= f ? 0 : 1) : -1;
     const c = new Map();
     for (const s of a.songs) if (s.g >= 0) c.set(s.g, (c.get(s.g) || 0) + 1);
     a.genre = [...c].sort((x, y) => y[1] - x[1])[0]?.[0] ?? -1;
@@ -1299,11 +1307,33 @@ function reason(s, favs) {
 
 $("recsMore").onclick = () => { recSeed++; refresh(); };
 
+// The best-known singer at each voice level (the one with the most songs in the list), from
+// the decade picked and of the singer picked, to show what "High", "Low"... sound like. Falls
+// back to the decades either side when that decade has no one at a level, then to any decade.
+// Each act counts as male or female by most of its songs.
+function voiceExamples(born, sing) {
+  const sexes = sing === 0 || sing === 1 ? [sing] : [0, 1];
+  const pick = (lo, hi) => RANGES.map((_, level) => sexes.map(sex => {
+    const n = new Map();
+    for (const s of SONGS) {
+      const a = s.artist;
+      if (a.range !== level || a.sex !== sex || (lo && !(s.y >= lo && s.y < hi))) continue;
+      n.set(a, (n.get(a) || 0) + 1);
+    }
+    return [...n].sort((x, y) => y[1] - x[1])[0]?.[0].name || "";
+  }));
+  const tries = born < 0 ? [pick()] : [pick(BORN[born], BORN[born] + 10), pick(BORN[born] - 10, BORN[born] + 20), pick()];
+  return RANGES.map((_, level) => {
+    const names = tries.find(t => t[level].every(Boolean))?.[level] || tries.at(-1)[level];
+    return names.filter(Boolean).join(", ");
+  });
+}
+
 function tuneSheet() {
   const draft = {...TUNE};
   const group = (key, title, opts) => `<section class="ask-group" data-key="${key}"><h3>${title}</h3><div class="chips">` +
     opts.map((name, i) => `<button type="button" class="chip${draft[key] === i ? " on" : ""}" data-i="${i}" ` +
-      `aria-pressed="${draft[key] === i}">${esc(name)}</button>`).join("") +
+      `aria-pressed="${draft[key] === i}">${esc(name)}${key === "voice" ? "<small></small>" : ""}</button>`).join("") +
     `</div></section>`;
   openSheet(`
     <h2 id="sheetTitle">Fine tune my recommendations</h2>
@@ -1313,6 +1343,11 @@ function tuneSheet() {
     ${group("voice", "How high you sing", RANGES)}
     <div class="acts stick"><button type="button" class="quiet" data-act="clear">Clear</button>
       <button type="button" class="go" data-act="save">Show my picks</button></div>`, el => {
+    const examples = () => {
+      const ex = voiceExamples(draft.born, draft.sing);
+      el.querySelectorAll('[data-key="voice"] .chip small').forEach((x, i) => (x.textContent = ex[i] ? `like ${ex[i]}` : ""));
+    };
+    examples();
     // One choice per question; tapping the chosen one again unpicks it.
     el.addEventListener("click", e => {
       const c = e.target.closest(".chip"), key = c?.closest(".ask-group").dataset.key;
@@ -1323,10 +1358,12 @@ function tuneSheet() {
         const on = +x.dataset.i === draft[key];
         x.classList.toggle("on", on); x.setAttribute("aria-pressed", on);
       });
+      if (key !== "voice") examples();
     });
     el.querySelector('[data-act="clear"]').onclick = () => {
       draft.born = draft.sing = draft.voice = -1;
       el.querySelectorAll(".chip").forEach(x => { x.classList.remove("on"); x.setAttribute("aria-pressed", false); });
+      examples();
     };
     el.querySelector('[data-act="save"]').onclick = () => {
       Object.assign(TUNE, draft);

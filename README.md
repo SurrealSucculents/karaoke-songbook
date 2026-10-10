@@ -150,7 +150,9 @@ decade the guest was born, whether they like songs sung by men, women or duets,
 and how high they sing (very high, high, medium, low, very low). Each is
 optional. For you then favours songs from their teens and twenties, leaves out
 songs by the other sex (duets stay in), and favours singers who sing as high as
-they do, or one step either side. It works with no saved songs at all; with saved
+they do, or one step either side. Each level shows an example singer ("like Phil
+Collins, Kylie Minogue"): the act with the most songs at that level from the
+decade they picked, and of the singer they picked, so they can tell which they are. It works with no saved songs at all; with saved
 songs, it steers those picks. The answers are kept on the phone, like saved
 songs, and a pink dot on the button shows they're set.
 
