@@ -11,7 +11,9 @@
 <meta property="og:description" content="Find a song to sing, and see when the next karaoke nights are.">
 <meta property="og:url" content="https://maddogkaraoke.co.uk/">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308040F'/%3E%3Cpath d='M13 22a4 4 0 1 1-2-3.46V8l12-2v12a4 4 0 1 1-2-3.46V9.36L13 10.7z' fill='%23F2EEF7'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="img/favicon-64.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:image" content="https://maddogkaraoke.co.uk/img/logo-512.png">
 <style>
   :root{
     --ground:#08040F; --riser:#150C24; --rail:#2A1B3F; --edge:#3D2A57; --lift:#20143A;
@@ -48,9 +50,8 @@
   .mark{display:inline-flex;align-items:center;gap:9px;font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
   .mark em{font-style:normal;background:linear-gradient(90deg,var(--part-a),#FF6FA0 45%,var(--part-b));
            -webkit-background-clip:text;background-clip:text;color:transparent}
-  .logo{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;color:#fff;
-        background:linear-gradient(140deg,var(--part-a),#8A2BE2);box-shadow:0 4px 16px rgba(237,31,97,.4)}
-  .logo svg{width:17px;height:17px}
+  .logo{display:block;flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#DED9D3;
+        box-shadow:0 4px 16px rgba(0,0,0,.4)}
   /* loading equaliser */
   .eq{display:flex;gap:4px;align-items:flex-end;height:22px}
   .eq i{width:5px;border-radius:3px;background:linear-gradient(var(--part-b),var(--part-a));height:100%;
@@ -351,8 +352,7 @@
 
 <main class="gate" id="gate">
   <div class="card" id="gateCard">
-    <div class="mark"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-      stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span><span>Mad Dog <em>Karaoke</em></span></div>
+    <div class="mark"><img class="logo" src="img/logo-128.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></div>
     <h1 id="gateTitle">Opening the songbook…</h1>
     <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="msg stop" id="gateMsg" role="alert" hidden></div>
@@ -363,8 +363,7 @@
 <div id="app" hidden>
   <header class="top" id="top">
     <div class="wrap">
-      <div class="bar"><span class="mark"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-      stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span><span>Mad Dog <em>Karaoke</em></span></span>
+      <div class="bar"><span class="mark"><img class="logo" src="img/logo-128.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></span>
         <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
           d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div>
