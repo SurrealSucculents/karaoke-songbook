@@ -253,11 +253,10 @@
   .recs .row{grid-template-columns:1fr auto}
   .recs .why{display:block;font-size:12px;font-weight:600;color:var(--part-b);margin-top:3px;
              white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .quick{width:40px;height:40px;border-radius:999px;border:1px solid var(--edge);background:transparent;
-         color:var(--dim);font-size:17px;line-height:1;display:grid;place-items:center}
-  .quick[aria-pressed="true"]{background:var(--part-a);border-color:var(--part-a);color:#fff}
+  .quick{width:44px;height:44px;margin-right:-8px;border:0;background:none;padding:0;
+         color:var(--dim);font-size:26px;line-height:1;display:grid;place-items:center}
+  .quick[aria-pressed="true"]{color:var(--part-a);text-shadow:0 0 14px rgba(237,31,97,.5)}
   .quick.pop{animation:beat .45s var(--spring)}
-  #list .quick,#artistList .quick{width:38px;height:38px;font-size:16px}
 
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
