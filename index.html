@@ -25,7 +25,7 @@
     color-scheme:dark;
   }
   *{box-sizing:border-box}
-  html{-webkit-text-size-adjust:100%}
+  html{-webkit-text-size-adjust:100%;overflow-x:clip}
   body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--ui);
        -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
   /* stage lighting: soft pink and cyan glows behind everything */
@@ -70,14 +70,26 @@
   .msg.stop{background:#2B0D1B;color:#FFC2D4;box-shadow:inset 2px 0 0 var(--part-a)}
 
   /* ---------- top ---------- */
-  /* Scrolled down, the logo row slides up out of view and the tabs and filters stay.
-     It moves rather than shrinks, so the list underneath never jumps. */
-  .top{position:sticky;top:0;z-index:5;padding-top:env(safe-area-inset-top);transition:transform .38s var(--spring);
-       background:#0B0614;box-shadow:0 1px 0 var(--rail)}
-  .bar{display:flex;align-items:center;gap:10px;padding:12px var(--pad) 10px;transition:opacity .2s}
-  .top.compact{transform:translateY(calc(-1 * var(--bar-h, 0px)))}
-  .top.compact .bar{opacity:0;pointer-events:none}
-  .jump{transition:top .38s var(--spring)}
+  /* Scrolled down, the tabs, filters and count slide up behind the logo row and a chevron
+     under it brings them back. The header keeps its height in the page (it's just see-through
+     where they were), so the list underneath never jumps. Each layer paints its own full-width
+     background. */
+  .top{position:sticky;top:0;z-index:5;pointer-events:none}
+  .top .wrap > *{pointer-events:auto}
+  .bar::before,.more::before{content:"";position:absolute;z-index:-1;top:0;bottom:0;left:calc(50% - 50vw);right:calc(50% - 50vw);
+                             background:#0B0614}
+  .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
+       padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid transparent;transition:border-color .2s}
+  .more{position:relative;z-index:1;transition:transform .4s var(--spring)}
+  .top.collapsed:not(.peek) .more{transform:translateY(-100%);pointer-events:none}
+  .top.collapsed:not(.peek) .bar{border-bottom-color:var(--rail)}
+  .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
+        color:var(--dim);background:#0B0614;border:1px solid var(--rail);border-top:0;border-radius:0 0 12px 12px;
+        opacity:0;pointer-events:none;transition:opacity .2s,color .2s}
+  .chev svg{width:18px;height:18px;transition:rotate .35s var(--spring)}
+  .top.collapsed .chev{opacity:1;pointer-events:auto}
+  .top.peek .chev svg{rotate:180deg}
+  .jump{transition:top .4s var(--spring)}
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
   .share svg{width:16px;height:16px}
@@ -295,6 +307,7 @@
         <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
           d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div>
+      <div class="more" id="more">
       <div class="seg"><nav class="tabs" id="tabs" data-on="songs" aria-label="View">
         <span class="pill" aria-hidden="true"></span>
         <button type="button" class="on" data-tab="songs" aria-pressed="true">Songs</button>
@@ -319,6 +332,10 @@
       </div>
       <div class="eyebrow"><span id="summary" aria-live="polite"></span>
         <button class="quiet" type="button" id="favShare" hidden>Share my list</button></div>
+      <button class="chev" id="chev" type="button" aria-label="Show tabs and filters" aria-controls="more"
+              aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      </div>
     </div>
   </header>
   <div class="wrap">
@@ -502,7 +519,6 @@ function start(data, nights) {
   // Shared links carry ?song=…&by=… or ?dates; open what was shared, then tidy the address.
   const p = new URLSearchParams(location.search);
   history.replaceState({v: "list"}, "", location.pathname);
-  measureBar();
   buildDock();
   refresh();
   if (p.has("song")) {
@@ -669,23 +685,31 @@ function draw() {
 }
 addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(draw); }, {passive: true});
 
-const top = $("top"), bar = top.querySelector(".bar");
-let barH = 0, compact = false;
-const headerH = () => top.offsetHeight - (compact ? barH : 0);
-function measureBar() {
-  barH = bar.offsetHeight;
-  top.style.setProperty("--bar-h", barH + "px");
-}
-// Two thresholds so it doesn't flicker when the page sits right on the edge.
-function fitHeader() {
-  const want = compact ? scrollY > 16 : scrollY > 48;
-  if (want === compact) return;
-  compact = want;
-  top.classList.toggle("compact", compact);
+const top = $("top"), bar = top.querySelector(".bar"), more = $("more"), chev = $("chev");
+let collapsed = false, peek = false, peekY = 0;
+// What the header covers right now: just the logo row when collapsed.
+const headerH = () => collapsed && !peek ? bar.offsetHeight : top.offsetHeight;
+function paintHeader() {
+  top.classList.toggle("collapsed", collapsed);
+  top.classList.toggle("peek", peek);
+  chev.setAttribute("aria-expanded", peek);
+  chev.setAttribute("aria-label", peek ? "Hide tabs and filters" : "Show tabs and filters");
   placeJump();
 }
+// Collapse once the first song reaches the logo row (so nothing jumps or gaps), with a
+// little slack on the way back so it doesn't flicker at the edge. Opened with the chevron,
+// the rows fold away again after a further scroll down.
+function fitHeader() {
+  const h = more.offsetHeight;
+  const want = collapsed ? scrollY > h - 40 : scrollY >= h;
+  const wantPeek = want && peek && scrollY < peekY + 80;
+  if (want === collapsed && wantPeek === peek) return;
+  collapsed = want; peek = wantPeek;
+  paintHeader();
+}
+chev.onclick = () => { peek = !peek; peekY = scrollY; paintHeader(); };
 addEventListener("scroll", fitHeader, {passive: true});
-addEventListener("resize", () => { measureBar(); fitDock(); draw(); });
+addEventListener("resize", () => { fitDock(); draw(); });
 
 /* ---------------------------------------------------------------- A–Z */
 
@@ -718,8 +742,8 @@ function jumpTo(l) {
   if (i >= letters.length) return;
   const pos = firstAt.get(letters[i]);
   const listTop = list.getBoundingClientRect().top + scrollY;
-  // Any jump lands far enough down that the header is compact.
-  window.scrollTo(0, listTop + pos * ROW - (top.offsetHeight - barH));
+  // Any jump lands far enough down that the header is collapsed to the logo row.
+  window.scrollTo(0, listTop + pos * ROW - bar.offsetHeight);
   clearTimeout(bubbleTimer);
   bubble.textContent = l; bubble.hidden = false;
 }
