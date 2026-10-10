@@ -86,9 +86,9 @@
   .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
         color:var(--dim);background:#0B0614;border:1px solid var(--rail);border-top:0;border-radius:0 0 12px 12px;
         opacity:0;pointer-events:none;transition:opacity .2s,color .2s}
-  .chev svg{width:18px;height:18px;transition:rotate .35s var(--spring)}
-  .top.collapsed .chev{opacity:1;pointer-events:auto}
-  .top.peek .chev svg{rotate:180deg}
+  .chev svg{width:18px;height:18px}
+  /* Once opened, the rows fold away again on scroll, so the chevron only shows while closed. */
+  .top.collapsed:not(.peek) .chev{opacity:1;pointer-events:auto}
   .jump{transition:top .4s var(--spring)}
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
@@ -693,7 +693,6 @@ function paintHeader() {
   top.classList.toggle("collapsed", collapsed);
   top.classList.toggle("peek", peek);
   chev.setAttribute("aria-expanded", peek);
-  chev.setAttribute("aria-label", peek ? "Hide tabs and filters" : "Show tabs and filters");
   placeJump();
 }
 // Collapse once the first song reaches the logo row (so nothing jumps or gaps), with a
@@ -707,7 +706,7 @@ function fitHeader() {
   collapsed = want; peek = wantPeek;
   paintHeader();
 }
-chev.onclick = () => { peek = !peek; peekY = scrollY; paintHeader(); };
+chev.onclick = () => { peek = true; peekY = scrollY; paintHeader(); };
 addEventListener("scroll", fitHeader, {passive: true});
 addEventListener("resize", () => { fitDock(); draw(); });
 
