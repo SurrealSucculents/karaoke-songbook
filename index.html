@@ -146,8 +146,8 @@
        gap:12px;align-items:center;padding:0 8px;margin:0 -6px;border-radius:10px;cursor:pointer;
        transition:background-color .2s}
   .row::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:1px;background:var(--rail)}
-  .row:active{background:var(--lift)}
-  @media (hover:hover){.row:hover{background:var(--riser)}}
+  /* Mouse only: on a touchscreen a resting finger (e.g. starting a scroll) would light rows up. */
+  @media (hover:hover) and (pointer:fine){.row:hover{background:var(--riser)}.row:active{background:var(--lift)}}
   .row.enter{animation:rowin .42s var(--spring) both}
   @keyframes rowin{from{opacity:0;translate:0 12px}}
   .tx{min-width:0}
