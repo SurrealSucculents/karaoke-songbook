@@ -20,27 +20,47 @@
     --r:10px; --r-lg:16px; --gap:8px; --pad:16px; --tap:48px; --row:62px;
     --ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     --num:"SF Mono",ui-monospace,"Roboto Mono",Menlo,monospace;
+    --glow-a:rgba(237,31,97,.18); --glow-b:rgba(31,234,237,.10);
+    --spring:cubic-bezier(.16,1,.3,1); --ease-in:cubic-bezier(.5,0,.75,0);
     color-scheme:dark;
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--ui);
        -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+  /* stage lighting: soft pink and cyan glows behind everything */
+  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+       background:radial-gradient(110% 55% at 15% -8%,var(--glow-a),transparent 62%),
+                  radial-gradient(90% 50% at 100% 0,var(--glow-b),transparent 60%),var(--ground)}
   [hidden]{display:none!important}
-  button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+  button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;
+         transition:transform .16s var(--spring),background-color .2s,border-color .2s,color .2s,box-shadow .2s}
+  button:active:not([disabled]){transform:scale(.96)}
   button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--live);outline-offset:2px}
   .wrap{max-width:640px;margin:0 auto}
 
   /* ---------- gate ---------- */
   .gate{min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;
         padding:24px var(--pad) calc(24px + env(safe-area-inset-bottom))}
-  .card{width:100%;max-width:380px;background:var(--riser);border:1px solid var(--rail);
-        border-radius:var(--r-lg);padding:26px 22px 22px;display:grid;gap:16px}
-  .mark{font-size:17px;font-weight:800;letter-spacing:-.02em}
+  .card{width:100%;max-width:380px;background:var(--riser);background:color-mix(in srgb,var(--riser) 88%,transparent);border:1px solid var(--rail);
+        border-radius:var(--r-lg);padding:26px 22px 22px;display:grid;gap:16px;animation:rise .5s var(--spring) both}
+  .mark{display:inline-flex;align-items:center;gap:9px;font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+  .mark em{font-style:normal;background:linear-gradient(90deg,var(--part-a),#FF6FA0 45%,var(--part-b));
+           -webkit-background-clip:text;background-clip:text;color:transparent}
+  .logo{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;color:#fff;
+        background:linear-gradient(140deg,var(--part-a),#8A2BE2);box-shadow:0 4px 16px rgba(237,31,97,.4)}
+  .logo svg{width:17px;height:17px}
+  /* loading equaliser */
+  .eq{display:flex;gap:4px;align-items:flex-end;height:22px}
+  .eq i{width:5px;border-radius:3px;background:linear-gradient(var(--part-b),var(--part-a));height:100%;
+        transform-origin:bottom;animation:eq .9s ease-in-out infinite}
+  .eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}.eq i:nth-child(4){animation-delay:-.15s}
+  @keyframes eq{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+  @keyframes rise{from{opacity:0;translate:0 14px}}
   .card h1{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:8px 0 0}
   .card p{margin:0;font-size:14px;color:var(--dim)}
-  .go{font-weight:700;border:0;border-radius:var(--r);background:var(--ink);color:#0B0616;
-      padding:13px 16px;min-height:var(--tap);width:100%}
+  .go{font-weight:700;border:0;border-radius:var(--r);color:#fff;padding:13px 16px;min-height:var(--tap);width:100%;
+      background:linear-gradient(135deg,var(--part-a),#B0179E);box-shadow:0 6px 22px -6px rgba(237,31,97,.6)}
   .go[disabled]{opacity:.5;cursor:default}
   .quiet{background:none;border:0;color:var(--dim);text-decoration:underline;text-underline-offset:3px;
          padding:6px 0;min-height:36px;font-size:14px}
@@ -49,26 +69,41 @@
   .msg.stop{background:#2B0D1B;color:#FFC2D4;box-shadow:inset 2px 0 0 var(--part-a)}
 
   /* ---------- top ---------- */
-  .top{position:sticky;top:0;z-index:5;background:var(--ground);padding-top:env(safe-area-inset-top)}
-  .bar{display:flex;align-items:center;gap:10px;padding:12px var(--pad) 8px}
-  .bar .count{margin-left:auto;font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
-  .share{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
+  .top{position:sticky;top:0;z-index:5;padding-top:env(safe-area-inset-top);
+       background:rgba(8,4,15,.78);-webkit-backdrop-filter:saturate(1.5) blur(16px);backdrop-filter:saturate(1.5) blur(16px)}
+  .bar{display:flex;align-items:center;gap:10px;padding:12px var(--pad) 10px}
+  .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
   .share svg{width:16px;height:16px}
   .search{padding:0 var(--pad);position:relative}
-  .search input{font:inherit;width:100%;padding:12px 44px 12px 14px;min-height:var(--tap);
-                border-radius:var(--r);border:1px solid var(--edge);background:var(--riser);color:var(--ink);
-                -webkit-appearance:none;appearance:none}
+  .search input{font:inherit;width:100%;padding:12px 44px 12px 42px;min-height:var(--tap);
+                border-radius:12px;border:1px solid var(--edge);background:var(--riser);color:var(--ink);
+                -webkit-appearance:none;appearance:none;transition:border-color .2s,box-shadow .25s}
+  .search input:focus{outline:0;border-color:var(--part-a);box-shadow:0 0 0 4px rgba(237,31,97,.18)}
+  .search .glass{position:absolute;left:calc(var(--pad) + 14px);top:50%;translate:0 -50%;width:18px;height:18px;
+                 color:var(--faint);pointer-events:none;transition:color .2s}
+  .search input:focus ~ .glass{color:var(--part-a)}
   .search input::placeholder{color:var(--faint)}
   .search input::-webkit-search-cancel-button{display:none}
   .search .x{position:absolute;right:calc(var(--pad) + 2px);top:2px;width:44px;height:44px;border:0;
              background:none;color:var(--dim);font-size:22px;line-height:1;border-radius:var(--r)}
-  .tabs{display:flex;gap:var(--gap);padding:10px var(--pad) 0}
-  .tabs button,.filters button{flex:1;font-weight:600;font-size:14px;padding:9px 6px;min-height:42px;
+  /* segmented control with a sliding highlight */
+  .seg{padding:10px var(--pad) 0}
+  .tabs{position:relative;display:flex;padding:4px;border-radius:12px;background:var(--riser);border:1px solid var(--rail)}
+  .tabs .pill{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / 3);border-radius:9px;
+              background:var(--lift);border:1px solid var(--edge);box-shadow:0 2px 10px rgba(0,0,0,.35);
+              transition:transform .38s var(--spring)}
+  .tabs[data-on="artists"] .pill{transform:translateX(100%)}
+  .tabs[data-on="saved"] .pill{transform:translateX(200%)}
+  .tabs button{position:relative;flex:1;font-weight:600;font-size:14px;padding:8px 6px;min-height:38px;border:0;
+               background:none;color:var(--dim);white-space:nowrap}
+  .tabs button.on{color:var(--ink)}
+  .filters button{flex:1;font-weight:600;font-size:14px;padding:9px 6px;min-height:42px;
              border:1px solid var(--rail);border-radius:var(--r);background:transparent;color:var(--dim);
              white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tabs button.on,.filters button.on{background:var(--lift);border-color:var(--edge);color:var(--ink)}
-  .tabs .heart{color:var(--part-a);margin-right:3px}
+  .filters button.on{background:rgba(237,31,97,.12);border-color:rgba(237,31,97,.55);color:var(--ink)}
+  .tabs .heart{color:var(--part-a);margin-right:4px;display:inline-block}
+  .tabs button.on .heart{animation:beat .5s var(--spring)}
   .eyebrow .quiet{margin-left:auto;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;min-height:0;padding:0}
   .filters{display:flex;gap:var(--gap);padding:8px var(--pad) 0}
   .filters button{font-weight:500}
@@ -82,8 +117,13 @@
   .list{position:relative;margin:0 var(--pad)}
   .list.has-rail{margin-right:34px}
   .row{position:absolute;left:0;right:0;height:var(--row);display:grid;grid-template-columns:1fr auto;
-       gap:12px;align-items:center;padding:0 2px;border-bottom:1px solid var(--rail);cursor:pointer}
-  .row:active{background:var(--riser)}
+       gap:12px;align-items:center;padding:0 8px;margin:0 -6px;border-radius:10px;cursor:pointer;
+       transition:background-color .2s}
+  .row::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:1px;background:var(--rail)}
+  .row:active{background:var(--lift)}
+  @media (hover:hover){.row:hover{background:var(--riser)}}
+  .row.enter{animation:rowin .42s var(--spring) both}
+  @keyframes rowin{from{opacity:0;translate:0 12px}}
   .tx{min-width:0}
   .t,.a{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .t{font-size:16px;font-weight:600;line-height:1.25}
@@ -92,7 +132,8 @@
   .yr{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--faint);letter-spacing:.02em}
   .n{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--faint)}
   .n::after{content:" ›";font-family:var(--ui);font-size:17px;color:var(--faint)}
-  .empty{padding:40px var(--pad);text-align:center;color:var(--dim);display:grid;gap:12px;justify-items:center}
+  .empty{padding:40px var(--pad);text-align:center;color:var(--dim);display:grid;gap:12px;justify-items:center;
+         animation:rise .4s var(--spring) both}
   .empty b{color:var(--ink);font-size:17px}
 
   /* A–Z jump rail, like a phone's contacts */
@@ -103,25 +144,31 @@
   .jump span.off{color:var(--rail)}
   .bubble{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:22px;
           background:var(--riser);border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;
-          font-size:44px;font-weight:800;z-index:9;pointer-events:none}
+          font-size:44px;font-weight:800;z-index:9;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.5);
+          animation:pop .2s var(--spring)}
 
   /* ---------- sheets ---------- */
-  .scrim{position:fixed;inset:0;background:rgba(5,2,8,.72);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+  .scrim{position:fixed;inset:0;background:rgba(5,2,8,.68);z-index:20;display:flex;align-items:flex-end;justify-content:center;
+         -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:fade .25s ease-out both}
+  .scrim.leaving{animation:fade .22s ease-in reverse both}
+  @keyframes fade{from{opacity:0}}
   .sheet{width:100%;max-width:640px;max-height:88vh;max-height:88svh;overflow:auto;background:var(--riser);
          border:1px solid var(--rail);border-bottom:0;border-radius:var(--r-lg) var(--r-lg) 0 0;
          padding:10px 20px calc(18px + env(safe-area-inset-bottom));display:grid;gap:14px;
-         animation:up .18s ease-out}
-  @keyframes up{from{transform:translateY(24px);opacity:.4}}
-  @media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+         box-shadow:0 -20px 60px rgba(0,0,0,.45);animation:up .45s var(--spring) both}
+  .leaving .sheet{animation:down .22s var(--ease-in) both}
+  @keyframes up{from{translate:0 100%}}
+  @keyframes down{to{translate:0 100%}}
   .grab{width:40px;height:4px;border-radius:2px;background:var(--edge);justify-self:center;margin-bottom:4px}
   .sheet h2{font-size:22px;font-weight:700;letter-spacing:-.015em;line-height:1.15;margin:0}
   .sheet .sub{margin:-8px 0 0;color:var(--dim);font-size:14px}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip.on{animation:beat .35s var(--spring)}
   .chip{font-weight:600;font-size:14px;padding:9px 13px;min-height:42px;border:1px solid var(--rail);
         border-radius:var(--r);background:transparent;color:var(--dim);display:inline-flex;align-items:baseline;gap:7px}
   .chip i{font-style:normal;font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11.5px;
           font-weight:400;color:var(--faint)}
-  .chip.on{background:var(--lift);border-color:var(--edge);color:var(--ink)}
+  .chip.on{background:rgba(237,31,97,.14);border-color:rgba(237,31,97,.6);color:var(--ink)}
   .chip.on i{color:var(--dim)}
   .chip[disabled]{opacity:.35;cursor:default}
   .acts{display:flex;gap:12px;align-items:center}
@@ -133,22 +180,24 @@
   /* song modal: centred card instead of a bottom sheet */
   .scrim.modal{align-items:center;padding:16px}
   .scrim.modal .sheet{border:1px solid var(--rail);border-radius:var(--r-lg);max-height:calc(100svh - 32px);
-                      padding:22px 20px 18px;animation:pop .16s ease-out}
+                      padding:22px 20px 18px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .38s var(--spring) both}
+  .scrim.modal.leaving .sheet{animation:pop .18s var(--ease-in) reverse both}
   .scrim.modal .grab{display:none}
-  @keyframes pop{from{transform:scale(.96);opacity:.4}}
-  @media (prefers-reduced-motion:reduce){.scrim.modal .sheet{animation:none}}
+  @keyframes pop{from{opacity:0;scale:.92;translate:0 10px}}
+  @keyframes beat{40%{scale:1.3}}
   .head{display:flex;gap:12px;align-items:flex-start}
   .head > div{flex:1;min-width:0;display:grid;gap:6px}
   .head .sub{margin:0}
   .fav{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;font-size:14px;
        font-weight:600;border:1px solid var(--edge);border-radius:999px;background:transparent;color:var(--ink)}
   .fav b{color:var(--dim);font-size:16px;line-height:1}
-  .fav[aria-pressed="true"]{background:var(--part-a);border-color:var(--part-a);color:#fff}
-  .fav[aria-pressed="true"] b{color:#fff}
+  .fav b{display:inline-block}
+  .fav[aria-pressed="true"]{background:var(--part-a);border-color:var(--part-a);color:#fff;box-shadow:0 4px 18px -4px rgba(237,31,97,.7)}
+  .fav[aria-pressed="true"] b{color:#fff;animation:beat .45s var(--spring)}
   .shared{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
   .shared li{padding:9px 2px;border-bottom:1px solid var(--rail);font-weight:600;font-size:15px}
   .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
-  .ask{background:var(--lift);border:1px solid var(--edge);border-radius:var(--r);padding:14px 15px;
+  .ask{background:linear-gradient(160deg,var(--lift),var(--riser));border:1px solid var(--edge);border-radius:var(--r);padding:14px 15px;
        box-shadow:inset 3px 0 0 var(--live)}
   .ask h3{margin:0 0 8px;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
   .ask p{margin:0 0 8px;font-size:14px;color:var(--dim)}
@@ -169,7 +218,8 @@
                padding:10px 0 calc(18px + env(safe-area-inset-bottom));margin-bottom:calc(-18px - env(safe-area-inset-bottom))}
 
   /* ---------- dates dock: upcoming nights along the bottom ---------- */
-  .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--ground);border-top:1px solid var(--rail);
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;border-top:1px solid var(--rail);animation:rise .5s .15s var(--spring) both;
+        background:rgba(8,4,15,.8);-webkit-backdrop-filter:saturate(1.5) blur(16px);backdrop-filter:saturate(1.5) blur(16px);
         padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
   .dock .wrap{display:flex;align-items:center;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;
               scroll-padding-inline:var(--pad);padding:0 var(--pad);scrollbar-width:none;overscroll-behavior-x:contain}
@@ -179,28 +229,43 @@
   .night{flex:0 0 auto;scroll-snap-align:start;padding:3px 10px;white-space:nowrap;font-size:13.5px;font-weight:700;
          border:1px solid var(--rail);border-radius:999px;background:var(--riser)}
   .night span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
-  .night.now{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live)}
+  .night.now{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live);animation:glow 2.6s ease-in-out infinite}
+  @keyframes glow{50%{box-shadow:inset 0 0 0 1px var(--live),0 0 16px rgba(255,197,61,.45)}}
   .night.now span{color:var(--live)}
   .toast{position:fixed;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#0B0616;
-         font-weight:600;font-size:14px;padding:10px 16px;border-radius:var(--r);pointer-events:none;white-space:nowrap}
+         font-weight:600;font-size:14px;padding:10px 16px;border-radius:999px;pointer-events:none;white-space:nowrap;
+         box-shadow:0 10px 30px rgba(0,0,0,.5);animation:pop .35s var(--spring) both}
+  .toast.leaving{animation:pop .2s var(--ease-in) reverse both}
 
   /* ---------- artist page ---------- */
-  .page{position:fixed;inset:0;z-index:10;background:var(--ground);overflow:auto;-webkit-overflow-scrolling:touch}
-  .page-top{position:sticky;top:0;background:var(--ground);padding:calc(8px + env(safe-area-inset-top)) var(--pad) 0;z-index:2}
+  .page{position:fixed;inset:0;z-index:10;background:var(--ground);overflow:auto;-webkit-overflow-scrolling:touch;
+        box-shadow:-20px 0 60px rgba(0,0,0,.5);animation:slidein .42s var(--spring) both}
+  .page.leaving{animation:slidein .24s var(--ease-in) reverse both}
+  @keyframes slidein{from{translate:100% 0}}
+  .page::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+        background:radial-gradient(100% 45% at 85% -5%,var(--glow-a),transparent 60%)}
+  .page-top{position:sticky;top:0;background:rgba(8,4,15,.8);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);padding:calc(8px + env(safe-area-inset-top)) var(--pad) 0;z-index:2}
   .back{background:none;border:0;color:var(--dim);font-size:15px;font-weight:600;min-height:var(--tap);padding:0 12px 0 0}
   .page h1{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:4px 0 4px;overflow-wrap:anywhere}
   .page .sub{color:var(--dim);font-size:14px;margin:0 0 12px}
-  .plain .row{position:relative;height:auto;min-height:var(--row);padding:10px 2px}
+  .plain .row{position:relative;height:auto;min-height:var(--row);padding:10px 8px}
   .plain .t,.plain .a{white-space:normal}
   .plain{margin:0 var(--pad);border-top:1px solid var(--rail)}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+                         animation-delay:0s!important;transition-duration:.01ms!important}
+  }
 </style>
 </head>
 <body>
 
 <main class="gate" id="gate">
   <div class="card" id="gateCard">
-    <div class="mark">Mad Dog Karaoke</div>
+    <div class="mark"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+      stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span><span>Mad Dog <em>Karaoke</em></span></div>
     <h1 id="gateTitle">Opening the songbook…</h1>
+    <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="msg stop" id="gateMsg" role="alert" hidden></div>
     <button class="go" id="gateGo" type="button" hidden>Try again</button>
   </div>
@@ -209,20 +274,24 @@
 <div id="app" hidden>
   <header class="top" id="top">
     <div class="wrap">
-      <div class="bar"><span class="mark">Mad Dog Karaoke</span><span class="count" id="total"></span>
+      <div class="bar"><span class="mark"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+      stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span><span>Mad Dog <em>Karaoke</em></span></span>
         <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
           d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div>
       <div class="search">
         <input id="q" type="search" placeholder="Search songs or artists" autocomplete="off" autocorrect="off"
                autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search songs or artists">
+        <svg class="glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+             aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <button class="x" id="qx" type="button" aria-label="Clear search" hidden>×</button>
       </div>
-      <nav class="tabs" aria-label="View">
+      <div class="seg"><nav class="tabs" id="tabs" data-on="songs" aria-label="View">
+        <span class="pill" aria-hidden="true"></span>
         <button type="button" class="on" data-tab="songs" aria-pressed="true">Songs</button>
         <button type="button" data-tab="artists" aria-pressed="false">Artists</button>
         <button type="button" data-tab="saved" aria-pressed="false"><span class="heart" aria-hidden="true">♥</span>Saved</button>
-      </nav>
+      </nav></div>
       <div class="filters">
         <button type="button" id="fGenre" aria-haspopup="dialog">Genre<span class="caret">▾</span></button>
         <button type="button" id="fDecade" aria-haspopup="dialog">Decade<span class="caret">▾</span></button>
@@ -282,6 +351,20 @@ const DECADES = [
   {id: "20", label: "2020s", test: y => y >= 2020},
 ];
 const $ = id => document.getElementById(id);
+const MOTION = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Play an element's "leaving" animation, then hide it. Showing it again cancels that.
+const leaveTimers = new Map();
+function leave(el, ms) {
+  el.classList.add("leaving");
+  clearTimeout(leaveTimers.get(el));
+  leaveTimers.set(el, setTimeout(() => { el.hidden = true; el.classList.remove("leaving"); }, MOTION ? ms : 0));
+}
+function reveal(el) {
+  clearTimeout(leaveTimers.get(el));
+  el.classList.remove("leaving");
+  el.hidden = false;
+}
+const isOpen = el => !el.hidden && !el.classList.contains("leaving");
 const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many) => `${fmt(n)} ${n === 1 ? one : many}`;
 const esc = s => s.replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
@@ -316,13 +399,14 @@ function gateError(title, body) {
   gateMsg.innerHTML = `<b>${esc(title)}</b>${esc(body)}`;
   gateMsg.hidden = false;
   gateGo.hidden = false;
+  $("eq").hidden = true;
 }
 
 let busy = false;
 async function openBook() {
   if (busy) return;
   busy = true;
-  gateTitle.textContent = "Opening the songbook…"; gateMsg.hidden = true; gateGo.hidden = true;
+  gateTitle.textContent = "Opening the songbook…"; gateMsg.hidden = true; gateGo.hidden = true; $("eq").hidden = false;
   try {
     const [data, nights] = await Promise.all([loadList(), loadSchedule()]);
     start(data, nights);
@@ -387,7 +471,6 @@ function start(data, nights) {
     a.genre = [...c].sort((x, y) => y[1] - x[1])[0]?.[0] ?? -1;
   }
   $("fVoice").hidden = !SONGS.some(s => s.v >= 0);
-  $("total").textContent = plural(SONGS.length, "song", "songs");
   $("gate").hidden = true;
   $("app").hidden = false;
   document.title = "Mad Dog Karaoke";
@@ -477,6 +560,7 @@ function compute() {
 const list = $("list"), jump = $("jump"), bubble = $("bubble");
 const ROW = 62;
 let pool = new Map();   // position -> element
+let entering = false;   // rows drawn straight after a refresh fade in
 
 function refresh(keepScroll) {
   view = compute();
@@ -506,6 +590,7 @@ function refresh(keepScroll) {
   pool.clear();
   buildJump();
   if (!keepScroll) window.scrollTo(0, 0);
+  entering = !keepScroll && MOTION;
   draw();
 }
 
@@ -542,9 +627,14 @@ function draw() {
   const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + 8);
   for (const [pos, el] of pool) if (pos < first || pos >= last) { el.remove(); pool.delete(pos); }
   const frag = document.createDocumentFragment();
+  let k = 0;
   for (let pos = first; pos < last; pos++) {
-    if (!pool.has(pos)) { const el = rowFor(view[pos], pos); pool.set(pos, el); frag.appendChild(el); }
+    if (pool.has(pos)) continue;
+    const el = rowFor(view[pos], pos);
+    if (entering) { el.classList.add("enter"); el.style.animationDelay = Math.min(k++, 14) * 24 + "ms"; }
+    pool.set(pos, el); frag.appendChild(el);
   }
+  entering = false;
   list.appendChild(frag);
 }
 addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(draw); }, {passive: true});
@@ -625,6 +715,7 @@ $("qx").onclick = () => { q.value = ""; state.q = ""; refresh(); q.focus(); };
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   state.tab = b.dataset.tab;
+  $("tabs").dataset.on = state.tab;
   document.querySelectorAll(".tabs button").forEach(x => {
     x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
   });
@@ -642,20 +733,20 @@ const scrim = $("scrim"), sheet = $("sheet");
 function openSheet(html, wire, modal) {
   scrim.classList.toggle("modal", !!modal);
   sheet.innerHTML = `<div class="grab"></div>` + html;
-  scrim.hidden = false;
+  reveal(scrim);
   document.body.style.overflow = "hidden";
   history.pushState({v: "sheet"}, "");
   wire?.(sheet);
   sheet.querySelector("button")?.focus({preventScroll: true});
 }
 function closeSheet(fromHistory) {
-  if (scrim.hidden) return;
-  scrim.hidden = true;
+  if (!isOpen(scrim)) return;
+  leave(scrim, 220);
   document.body.style.overflow = "";
   if (!fromHistory && history.state?.v === "sheet") history.back();
 }
 scrim.addEventListener("click", e => { if (e.target === scrim) closeSheet(); });
-addEventListener("keydown", e => { if (e.key === "Escape") { if (!scrim.hidden) closeSheet(); else if (!$("artistPage").hidden) history.back(); } });
+addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
 
 function countBy(fn, size) {
   const c = new Array(size).fill(0);
@@ -758,7 +849,7 @@ function songSheet(s, onArtistPage) {
       const a = el.querySelector('[data-act="artist"]');
       // The sheet's history entry becomes the artist page's, so Back goes to the list.
       if (a) a.onclick = () => {
-        scrim.hidden = true; document.body.style.overflow = "";
+        clearTimeout(leaveTimers.get(scrim)); scrim.hidden = true; document.body.style.overflow = "";
         openArtist(s.artist, true);
       };
     }, true);
@@ -771,9 +862,10 @@ let toastTimer = 0;
 function toast(text) {
   toastEl.textContent = text;
   toastEl.style.bottom = dockH + 16 + "px";
-  toastEl.hidden = false;
+  // Restart the pop-in even if a toast is already showing.
+  toastEl.hidden = true; void toastEl.offsetWidth; reveal(toastEl);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toastEl.hidden = true), 2200);
+  toastTimer = setTimeout(() => leave(toastEl, 200), 2200);
 }
 
 // The phone's own share menu where there is one; otherwise copy the link.
@@ -931,16 +1023,19 @@ function openArtist(a, replace) {
     el.innerHTML = `<span class="tx"><span class="t">${esc(s.t)}</span>${sub ? `<span class="a">${esc(sub)}</span>` : ""}</span>` +
       `<span class="yr">${s.y || ""}</span>`;
     el.onclick = () => songSheet(s, true);
+    if (MOTION && box.children.length < 14) {
+      el.classList.add("enter"); el.style.animationDelay = 120 + box.children.length * 24 + "ms";
+    }
     box.appendChild(el);
   }
-  page.hidden = false;
+  reveal(page);
   page.scrollTop = 0;
   document.body.style.overflow = "hidden";
   replace ? history.replaceState({v: "artist"}, "") : history.pushState({v: "artist"}, "");
   $("artistBack").focus({preventScroll: true});
 }
 function closeArtist() {
-  page.hidden = true;
+  leave(page, 240);
   document.body.style.overflow = "";
   window.scrollTo(0, pageScroll);
   draw();
@@ -948,8 +1043,8 @@ function closeArtist() {
 $("artistBack").onclick = () => history.back();
 
 addEventListener("popstate", e => {
-  if (!scrim.hidden) { closeSheet(true); return; }
-  if (!page.hidden && e.state?.v !== "artist") closeArtist();
+  if (isOpen(scrim)) { closeSheet(true); return; }
+  if (isOpen(page) && e.state?.v !== "artist") closeArtist();
 });
 
 /* ---------------------------------------------------------------- go */
