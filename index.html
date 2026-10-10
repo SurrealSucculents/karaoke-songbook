@@ -11,7 +11,9 @@
 <meta property="og:description" content="Find a song to sing, and see when the next karaoke nights are.">
 <meta property="og:url" content="https://maddogkaraoke.co.uk/">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308040F'/%3E%3Cpath d='M13 22a4 4 0 1 1-2-3.46V8l12-2v12a4 4 0 1 1-2-3.46V9.36L13 10.7z' fill='%23F2EEF7'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="img/favicon-64.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:image" content="https://maddogkaraoke.co.uk/img/logo-512.png">
 <style>
   :root{
     --ground:#08040F; --riser:#150C24; --rail:#2A1B3F; --edge:#3D2A57; --lift:#20143A;
@@ -48,9 +50,8 @@
   .mark{display:inline-flex;align-items:center;gap:9px;font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
   .mark em{font-style:normal;background:linear-gradient(90deg,var(--part-a),#FF6FA0 45%,var(--part-b));
            -webkit-background-clip:text;background-clip:text;color:transparent}
-  .logo{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;color:#fff;
-        background:linear-gradient(140deg,var(--part-a),#8A2BE2);box-shadow:0 4px 16px rgba(237,31,97,.4)}
-  .logo svg{width:17px;height:17px}
+  .logo{display:block;flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#DED9D3;
+        box-shadow:0 4px 16px rgba(0,0,0,.4)}
   /* loading equaliser */
   .eq{display:flex;gap:4px;align-items:flex-end;height:22px}
   .eq i{width:5px;border-radius:3px;background:linear-gradient(var(--part-b),var(--part-a));height:100%;
@@ -82,7 +83,7 @@
      while the rows slid, letting songs show through above the tabs.) */
   .bar,.more{background:#0B0614;box-shadow:-100vw 0 #0B0614,100vw 0 #0B0614}
   .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
-       padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid #0B0614;transition:border-color .2s}
+       padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid #0B0614}
   .more{position:relative;z-index:1;transition:transform .32s var(--spring)}
   .top.collapsed .more{transform:translate3d(0,-100%,0);pointer-events:none}
   .top.collapsed .bar{border-bottom-color:var(--rail)}
@@ -208,6 +209,18 @@
                       padding:18px 18px 14px;gap:12px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .38s var(--spring) both}
   .scrim.modal.leaving .sheet{animation:pop .18s var(--ease-in) reverse both}
   .scrim.modal .grab{display:none}
+  /* the song card's Close sits below the card, not inside it */
+  .scrim.modal{flex-direction:column;justify-content:center;gap:14px}
+  .scrim.modal .sheet{max-height:calc(100svh - 32px - 62px)}
+  .sheet-close{display:none}
+  .scrim.modal .sheet-close{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 22px;flex:0 0 auto;
+                            border:1px solid var(--edge);border-radius:999px;background:var(--riser);color:var(--ink);
+                            font-size:16px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:pop .38s var(--spring) both}
+  .scrim.modal.leaving .sheet-close{animation:pop .18s var(--ease-in) reverse both}
+  .sheet-close svg{width:18px;height:18px}
+  .icon-share{flex:0 0 auto;display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid var(--edge);
+              border-radius:var(--r);background:transparent;color:var(--ink)}
+  .icon-share svg{width:20px;height:20px}
   @keyframes pop{from{opacity:0;scale:.92;translate:0 10px}}
   @keyframes beat{40%{scale:1.3}}
   .head{display:flex;gap:12px;align-items:flex-start}
@@ -224,6 +237,32 @@
   .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
   .head .meta{margin:0;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
   .ask{margin:0;padding:10px 12px;border-radius:var(--r);background:var(--lift);font-size:14px;color:var(--dim)}
+  /* song modal: title, artist and host prompt big enough to hold up to the host */
+  .song-top{align-items:center}
+  .song-top .meta{flex:1;min-width:0}
+  .song-big{display:grid;gap:6px}
+  .sheet .song-big h2{font-size:clamp(36px,11vw,64px);line-height:1.02;letter-spacing:-.025em;overflow-wrap:anywhere}
+  .sheet .song-big .sub{margin:0;font-size:clamp(24px,7.5vw,38px);font-weight:600;line-height:1.1;color:var(--ink);overflow-wrap:anywhere}
+  .ask.big{padding:14px 16px;font-size:clamp(20px,6vw,28px);font-weight:700;line-height:1.2;color:var(--ink)}
+  .go.request{font-size:20px;min-height:58px}
+  .artist-link{background:none;border:0;padding:6px 0;min-height:44px;color:var(--ink);font-size:15px;font-weight:600;
+               text-decoration:underline;text-decoration-color:var(--part-a);text-decoration-thickness:2px;text-underline-offset:4px;text-align:left}
+  .acts .icon-share{margin-left:auto}
+  /* request screen: shown to the host, so as big and plain as it can be */
+  .request-screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;gap:clamp(20px,5vh,48px);
+                  justify-content:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+                  background:var(--riser);overflow:auto;animation:fade .2s ease-out both}
+  .request-screen.leaving{animation:fade .2s ease-in reverse both}
+  .request-screen:focus{outline:0}
+  .req-ask{margin:auto 0 0;align-self:center;padding:10px 18px;border-radius:999px;color:#fff;font-weight:800;
+           font-size:clamp(22px,7vw,40px);text-transform:uppercase;letter-spacing:.04em;
+           background:linear-gradient(135deg,var(--part-a),#B0179E)}
+  .req-song{text-align:center;display:grid;gap:clamp(10px,2vh,20px)}
+  .req-song h2{margin:0;font-size:clamp(48px,15vw,120px);font-weight:800;line-height:1;letter-spacing:-.03em;
+               color:var(--ink);overflow-wrap:anywhere}
+  .req-song p{margin:0;font-size:clamp(30px,9vw,64px);font-weight:600;line-height:1.1;color:var(--ink);opacity:.85;overflow-wrap:anywhere}
+  .req-done{margin-top:auto;min-height:52px;border:1px solid var(--edge);border-radius:var(--r);background:transparent;
+            color:var(--dim);font-size:16px;font-weight:600}
   .listen{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;
           border:1px solid var(--edge);border-radius:var(--r);background:transparent;font-size:15px;font-weight:600}
   .listen svg{width:16px;height:16px;color:var(--part-b)}
@@ -316,8 +355,7 @@
 
 <main class="gate" id="gate">
   <div class="card" id="gateCard">
-    <div class="mark"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-      stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span><span>Mad Dog <em>Karaoke</em></span></div>
+    <div class="mark"><img class="logo" src="img/logo-128.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></div>
     <h1 id="gateTitle">Opening the songbook…</h1>
     <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="msg stop" id="gateMsg" role="alert" hidden></div>
@@ -328,8 +366,7 @@
 <div id="app" hidden>
   <header class="top" id="top">
     <div class="wrap">
-      <div class="bar"><span class="mark"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-      stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span><span>Mad Dog <em>Karaoke</em></span></span>
+      <div class="bar"><span class="mark"><img class="logo" src="img/logo-128.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></span>
         <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
           d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div>
@@ -397,9 +434,16 @@
 </section>
 
 <div class="toast" id="toast" role="status" hidden></div>
+<section class="request-screen" id="request" role="dialog" aria-modal="true" aria-labelledby="reqTitle" tabindex="-1" hidden>
+  <p class="req-ask">Show to host</p>
+  <div class="req-song"><h2 id="reqTitle"></h2><p id="reqBy"></p></div>
+  <button type="button" class="req-done" id="reqDone">Done</button>
+</section>
 
 <div class="scrim" id="scrim" hidden>
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1"></div>
+  <button type="button" class="sheet-close" id="sheetClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>Close</button>
 </div>
 
 <script>
@@ -631,6 +675,7 @@ function compute() {
 
 const list = $("list"), jump = $("jump"), bubble = $("bubble");
 const ROW = 62;
+const OVERSCAN = 24;   // rows drawn beyond each edge of the screen
 let pool = new Map();   // position -> element
 let entering = false;   // rows drawn straight after a refresh fade in
 // Once a row has faded in, drop the class so it doesn't linger as its own layer.
@@ -723,9 +768,10 @@ function draw(listTop) {
   raf = 0;
   if ($("app").hidden) return;
   const top = listTop ?? list.getBoundingClientRect().top;
-  // A generous margin above and below the screen so a fast flick doesn't outrun the rows.
-  const first = Math.max(0, Math.floor(-top / ROW) - 12);
-  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + 12);
+  // Rows are kept ready well past each edge of the screen, so a fast flick on a phone (which
+  // scrolls ahead of this code) shows songs rather than an empty gap while it catches up.
+  const first = Math.max(0, Math.floor(-top / ROW) - OVERSCAN);
+  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + OVERSCAN);
   const free = [];
   for (const [pos, el] of pool) if (pos < first || pos >= last) { free.push(el); pool.delete(pos); }
   const frag = document.createDocumentFragment();
@@ -918,7 +964,8 @@ function closeSheet(fromHistory) {
   if (!fromHistory && history.state?.v === "sheet") history.back();
 }
 scrim.addEventListener("click", e => { if (e.target === scrim) closeSheet(); });
-addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
+$("sheetClose").onclick = () => closeSheet();
+addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(request)) closeRequest(); else if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
 
 function countBy(fn, size) {
   const c = new Array(size).fill(0);
@@ -987,18 +1034,19 @@ function songSheet(s, onArtistPage) {
   const facts = [s.y, s.g >= 0 ? GENRES[s.g] : "", s.v >= 0 ? VOICES[s.v] : ""].filter(Boolean);
   const all = onArtistPage ? 0 : s.artist.songs.length;
   openSheet(`
-    <div class="head"><div><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p>
-      ${facts.length ? `<p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>` : ""}</div>
+    <div class="head song-top"><p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>
       <button type="button" class="fav" data-act="fav"></button></div>
-    <p class="ask">Show this to the host with your first name.</p>
+    <div class="song-big"><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div>
+    <button type="button" class="go request" data-act="request">Request song</button>
     <button type="button" class="listen" data-act="listen"><svg viewBox="0 0 24 24" fill="currentColor"
       aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>Listen to song</button>
-    <div class="acts"><button type="button" class="quiet" data-act="close">Close</button>
-      <button type="button" class="quiet" data-act="share">Share</button>
-      ${all > 1 ? `<button type="button" class="go small" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs</button>` : ""}</div>`,
+    <div class="acts">${all > 1 ? `<button type="button" class="artist-link" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs ›</button>` : ""}
+      <button type="button" class="icon-share" data-act="share" aria-label="Share this song"><svg viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
+        d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button></div>`,
     el => {
-      el.querySelector('[data-act="close"]').onclick = () => closeSheet();
       el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
+      el.querySelector('[data-act="request"]').onclick = () => openRequest(s);
       el.querySelector('[data-act="listen"]').onclick = () => listenSheet(s, onArtistPage);
       const fav = el.querySelector('[data-act="fav"]');
       const show = () => {
@@ -1018,6 +1066,25 @@ function songSheet(s, onArtistPage) {
       };
     }, true);
 }
+
+/* ---------------------------------------------------------------- request */
+
+// Full-screen card the singer holds up to the host. It sits over the song card, with its own
+// history entry so Back returns to the card.
+const request = $("request");
+function openRequest(s) {
+  $("reqTitle").textContent = s.t;
+  $("reqBy").textContent = s.by;
+  reveal(request);
+  history.pushState({v: "request"}, "");
+  request.focus({preventScroll: true});
+}
+function closeRequest(fromHistory) {
+  if (!isOpen(request)) return;
+  leave(request, 200);
+  if (!fromHistory && history.state?.v === "request") history.back();
+}
+$("reqDone").onclick = () => closeRequest();
 
 /* ---------------------------------------------------------------- listen */
 
@@ -1355,6 +1422,7 @@ function closeArtist() {
 $("artistBack").onclick = () => history.back();
 
 addEventListener("popstate", e => {
+  if (isOpen(request)) { closeRequest(true); return; }
   if (isOpen(scrim)) { closeSheet(true); return; }
   if (isOpen(page) && e.state?.v !== "artist") closeArtist();
 });
