@@ -91,7 +91,10 @@ male (`m`), female (`f`) or a male and female duo (`d`). Acts that aren't listed
 there (mixed bands, medleys, anything unsure) have no singer type. The lookup
 was filled in from general knowledge, so correct it where it's wrong, then run
 `python3 tools/build.py voices` to apply it to songs that have no type yet. To
-change a song that already has one, use `export` / `pack`, as above.
+re-apply it to every song after correcting an act, use `voices --reset` (this also
+clears types that came from export titles, so load the export again after).
+`d` is only for a male and female pair who sing together; a DJ or producer with
+a guest vocalist takes the singer's type instead.
 
 ## Files
 
