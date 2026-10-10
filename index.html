@@ -175,20 +175,17 @@
   .acts{display:flex;gap:12px;align-items:center}
   .acts .go{flex:1}
   .acts .go.small{flex:0 0 auto;width:auto;margin-left:auto;min-height:40px;padding:9px 16px;font-size:14px;white-space:nowrap}
-  .facts{display:flex;flex-wrap:wrap;gap:8px}
-  .fact{font-size:13px;color:var(--dim);border:1px solid var(--rail);border-radius:var(--r);padding:6px 10px}
-  .fact b{font-family:var(--num);font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
 
   /* song modal: centred card instead of a bottom sheet */
   .scrim.modal{align-items:center;padding:16px}
   .scrim.modal .sheet{border:1px solid var(--rail);border-radius:var(--r-lg);max-height:calc(100svh - 32px);
-                      padding:22px 20px 18px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .38s var(--spring) both}
+                      padding:18px 18px 14px;gap:12px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .38s var(--spring) both}
   .scrim.modal.leaving .sheet{animation:pop .18s var(--ease-in) reverse both}
   .scrim.modal .grab{display:none}
   @keyframes pop{from{opacity:0;scale:.92;translate:0 10px}}
   @keyframes beat{40%{scale:1.3}}
   .head{display:flex;gap:12px;align-items:flex-start}
-  .head > div{flex:1;min-width:0;display:grid;gap:6px}
+  .head > div{flex:1;min-width:0;display:grid;gap:3px}
   .head .sub{margin:0}
   .fav{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;font-size:14px;
        font-weight:600;border:1px solid var(--edge);border-radius:999px;background:transparent;color:var(--ink)}
@@ -199,15 +196,8 @@
   .shared{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
   .shared li{padding:9px 2px;border-bottom:1px solid var(--rail);font-weight:600;font-size:15px}
   .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
-  .ask{background:linear-gradient(160deg,var(--lift),var(--riser));border:1px solid var(--edge);border-radius:var(--r);padding:14px 15px;
-}
-  .ask h3{margin:0 0 8px;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
-  .ask p{margin:0 0 8px;font-size:14px;color:var(--dim)}
-  .ask ol{margin:0;padding:0;list-style:none;display:grid;gap:6px}
-  .ask li{display:grid;grid-template-columns:7.2em 1fr;gap:8px;font-size:14.5px;align-items:baseline}
-  .ask li span{color:var(--dim);font-size:13px}
-  .ask li b{font-weight:600;overflow-wrap:anywhere}
-  .ask li i{font-style:normal;color:var(--faint)}
+  .head .meta{margin:0;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .ask{margin:0;padding:10px 12px;border-radius:var(--r);background:var(--lift);font-size:14px;color:var(--dim)}
 
   /* schedule sheet */
   .cal{display:grid;gap:14px}
@@ -836,24 +826,13 @@ $("fDecade").onclick = () => pickerSheet("decade");
 $("fVoice").onclick = () => pickerSheet("voice");
 
 function songSheet(s, onArtistPage) {
-  const facts = [];
-  if (s.y) facts.push(`<span class="fact">Released <b>${s.y}</b></span>`);
-  if (s.g >= 0) facts.push(`<span class="fact">${esc(GENRES[s.g])}</span>`);
-  if (s.v >= 0) facts.push(`<span class="fact">${esc(VOICES[s.v])}</span>`);
+  const facts = [s.y, s.g >= 0 ? GENRES[s.g] : "", s.v >= 0 ? VOICES[s.v] : ""].filter(Boolean);
   const all = onArtistPage ? 0 : s.artist.songs.length;
   openSheet(`
-    <div class="head"><div><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div>
+    <div class="head"><div><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p>
+      ${facts.length ? `<p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>` : ""}</div>
       <button type="button" class="fav" data-act="fav"></button></div>
-    <div class="ask">
-      <h3>Ask the host to put you on</h3>
-      <p>They will need:</p>
-      <ol>
-        <li><span>Song title</span><b>${esc(s.t)}</b></li>
-        <li><span>Artist</span><b>${esc(s.by)}</b></li>
-        <li><span>Your first name</span><i>Tell the host</i></li>
-      </ol>
-    </div>
-    ${facts.length ? `<div class="facts">${facts.join("")}</div>` : ""}
+    <p class="ask">Show this to the host with your first name.</p>
     <div class="acts"><button type="button" class="quiet" data-act="close">Close</button>
       <button type="button" class="quiet" data-act="share">Share</button>
       ${all > 1 ? `<button type="button" class="go small" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">All ${fmt(all)} songs ›</button>` : ""}</div>`,
