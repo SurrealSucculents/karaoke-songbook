@@ -221,6 +221,13 @@
   .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
   .head .meta{margin:0;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
   .ask{margin:0;padding:10px 12px;border-radius:var(--r);background:var(--lift);font-size:14px;color:var(--dim)}
+  /* song modal: title, artist and host prompt big enough to hold up to the host */
+  .song-top{align-items:center}
+  .song-top .meta{flex:1;min-width:0}
+  .song-big{display:grid;gap:6px}
+  .sheet .song-big h2{font-size:clamp(36px,11vw,64px);line-height:1.02;letter-spacing:-.025em;overflow-wrap:anywhere}
+  .sheet .song-big .sub{margin:0;font-size:clamp(24px,7.5vw,38px);font-weight:600;line-height:1.1;color:var(--ink);overflow-wrap:anywhere}
+  .ask.big{padding:14px 16px;font-size:clamp(20px,6vw,28px);font-weight:700;line-height:1.2;color:var(--ink)}
   .listen{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;
           border:1px solid var(--edge);border-radius:var(--r);background:transparent;font-size:15px;font-weight:600}
   .listen svg{width:16px;height:16px;color:var(--part-b)}
@@ -976,10 +983,10 @@ function songSheet(s, onArtistPage) {
   const facts = [s.y, s.g >= 0 ? GENRES[s.g] : "", s.v >= 0 ? VOICES[s.v] : ""].filter(Boolean);
   const all = onArtistPage ? 0 : s.artist.songs.length;
   openSheet(`
-    <div class="head"><div><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p>
-      ${facts.length ? `<p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>` : ""}</div>
+    <div class="head song-top"><p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>
       <button type="button" class="fav" data-act="fav"></button></div>
-    <p class="ask">Show this to the host with your first name.</p>
+    <div class="song-big"><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div>
+    <p class="ask big">Show this to the host with your first name.</p>
     <button type="button" class="listen" data-act="listen"><svg viewBox="0 0 24 24" fill="currentColor"
       aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>Listen to song</button>
     <div class="acts"><button type="button" class="quiet" data-act="close">Close</button>
