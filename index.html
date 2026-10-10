@@ -102,14 +102,21 @@
   .bar{position:fixed;top:0;left:0;right:0;z-index:6;contain:layout paint style}
   .bar-in{display:flex;align-items:center;gap:10px;
           padding:calc(12px + env(safe-area-inset-top)) calc(var(--pad) + var(--side)) 10px}
-  .more{position:relative;z-index:1;padding-inline:var(--side);transition:transform .32s var(--spring)}
+  /* Safari (WebKit, so every browser on an iPhone) treats a transform that changes between none
+     and a value, or an opacity that reaches or leaves exactly 1, as a change of layout: it lays
+     the header out again and redraws all of the sliding rows, mid-scroll, in the very frame a
+     shut starts or an open ends. So the rows always carry a transform (one that moves them
+     nowhere when open) and the chevron's shown opacity is .99, never 1: opening and shutting
+     then lay out and redraw nothing. */
+  .more{position:relative;z-index:1;padding-inline:var(--side);transform:translate3d(0,0,0);
+        transition:transform .32s var(--spring)}
   .more::after{content:"";position:absolute;left:0;right:0;top:100%;height:1px;background:var(--rail)}
   .top.collapsed .more{transform:translate3d(0,-100%,0)}
   .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
         color:var(--dim);background:#0B0614;border:1px solid var(--rail);border-top:0;border-radius:0 0 12px 12px;
         opacity:0;pointer-events:none;transition:opacity .2s;will-change:opacity}
   .chev svg{width:18px;height:18px}
-  .top.collapsed .chev{opacity:1;pointer-events:auto}
+  .top.collapsed .chev{opacity:.99;pointer-events:auto}
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
   .share svg{width:16px;height:16px}
