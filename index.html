@@ -240,6 +240,23 @@
   .sheet .song-big h2{font-size:clamp(36px,11vw,64px);line-height:1.02;letter-spacing:-.025em;overflow-wrap:anywhere}
   .sheet .song-big .sub{margin:0;font-size:clamp(24px,7.5vw,38px);font-weight:600;line-height:1.1;color:var(--ink);overflow-wrap:anywhere}
   .ask.big{padding:14px 16px;font-size:clamp(20px,6vw,28px);font-weight:700;line-height:1.2;color:var(--ink)}
+  .go.request{font-size:20px;min-height:58px}
+  .acts .artist{margin-left:auto;font-size:14px;white-space:nowrap}
+  /* request screen: shown to the host, so as big and plain as it can be */
+  .request-screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;gap:clamp(20px,5vh,48px);
+                  justify-content:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+                  background:var(--riser);overflow:auto;animation:fade .2s ease-out both}
+  .request-screen.leaving{animation:fade .2s ease-in reverse both}
+  .request-screen:focus{outline:0}
+  .req-ask{margin:auto 0 0;align-self:flex-start;padding:10px 18px;border-radius:999px;color:#fff;font-weight:800;
+           font-size:clamp(22px,7vw,40px);text-transform:uppercase;letter-spacing:.04em;
+           background:linear-gradient(135deg,var(--part-a),#B0179E)}
+  .req-song{display:grid;gap:clamp(10px,2vh,20px)}
+  .req-song h2{margin:0;font-size:clamp(48px,15vw,120px);font-weight:800;line-height:1;letter-spacing:-.03em;
+               color:var(--ink);overflow-wrap:anywhere}
+  .req-song p{margin:0;font-size:clamp(30px,9vw,64px);font-weight:600;line-height:1.1;color:var(--ink);opacity:.85;overflow-wrap:anywhere}
+  .req-done{margin-top:auto;min-height:52px;border:1px solid var(--edge);border-radius:var(--r);background:transparent;
+            color:var(--dim);font-size:16px;font-weight:600}
   .listen{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;
           border:1px solid var(--edge);border-radius:var(--r);background:transparent;font-size:15px;font-weight:600}
   .listen svg{width:16px;height:16px;color:var(--part-b)}
@@ -413,6 +430,11 @@
 </section>
 
 <div class="toast" id="toast" role="status" hidden></div>
+<section class="request-screen" id="request" role="dialog" aria-modal="true" aria-labelledby="reqTitle" tabindex="-1" hidden>
+  <p class="req-ask">Show to host</p>
+  <div class="req-song"><h2 id="reqTitle"></h2><p id="reqBy"></p></div>
+  <button type="button" class="req-done" id="reqDone">Done</button>
+</section>
 
 <div class="scrim" id="scrim" hidden>
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1"></div>
@@ -929,7 +951,7 @@ function closeSheet(fromHistory) {
 }
 scrim.addEventListener("click", e => { if (e.target === scrim) closeSheet(); });
 $("sheetClose").onclick = () => closeSheet();
-addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
+addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(request)) closeRequest(); else if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
 
 function countBy(fn, size) {
   const c = new Array(size).fill(0);
@@ -1001,15 +1023,16 @@ function songSheet(s, onArtistPage) {
     <div class="head song-top"><p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>
       <button type="button" class="fav" data-act="fav"></button></div>
     <div class="song-big"><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div>
-    <p class="ask big">Show to host</p>
+    <button type="button" class="go request" data-act="request">Request song</button>
     <button type="button" class="listen" data-act="listen"><svg viewBox="0 0 24 24" fill="currentColor"
       aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>Listen to song</button>
     <div class="acts"><button type="button" class="icon-share" data-act="share" aria-label="Share this song"><svg viewBox="0 0 24 24"
         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
         d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
-      ${all > 1 ? `<button type="button" class="go small" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs</button>` : ""}</div>`,
+      ${all > 1 ? `<button type="button" class="listen artist" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs</button>` : ""}</div>`,
     el => {
       el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
+      el.querySelector('[data-act="request"]').onclick = () => openRequest(s);
       el.querySelector('[data-act="listen"]').onclick = () => listenSheet(s, onArtistPage);
       const fav = el.querySelector('[data-act="fav"]');
       const show = () => {
@@ -1029,6 +1052,25 @@ function songSheet(s, onArtistPage) {
       };
     }, true);
 }
+
+/* ---------------------------------------------------------------- request */
+
+// Full-screen card the singer holds up to the host. It sits over the song card, with its own
+// history entry so Back returns to the card.
+const request = $("request");
+function openRequest(s) {
+  $("reqTitle").textContent = s.t;
+  $("reqBy").textContent = s.by;
+  reveal(request);
+  history.pushState({v: "request"}, "");
+  request.focus({preventScroll: true});
+}
+function closeRequest(fromHistory) {
+  if (!isOpen(request)) return;
+  leave(request, 200);
+  if (!fromHistory && history.state?.v === "request") history.back();
+}
+$("reqDone").onclick = () => closeRequest();
 
 /* ---------------------------------------------------------------- listen */
 
@@ -1366,6 +1408,7 @@ function closeArtist() {
 $("artistBack").onclick = () => history.back();
 
 addEventListener("popstate", e => {
+  if (isOpen(request)) { closeRequest(true); return; }
   if (isOpen(scrim)) { closeSheet(true); return; }
   if (isOpen(page) && e.state?.v !== "artist") closeArtist();
 });
