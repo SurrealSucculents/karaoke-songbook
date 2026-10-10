@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Reused rows, own scroll area (scroll test)</title>
+<style>
+  /* Temporary scroll test: the songbook's list exactly as it scrolls (rows built once and reused,
+     redrawn every frame while scrolling), in its own scroll area, with nothing else on the page. */
+  :root{--ground:#08040F;--riser:#150C24;--rail:#2A1B3F;--edge:#3D2A57;--ink:#F2EEF7;--dim:#9B8FB0;--faint:#6E6383;
+        --pad:16px;--row:62px;--ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  *{box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--ui);-webkit-text-size-adjust:100%}
+  button{font:inherit;color:inherit}
+  #songs{position:fixed;inset:0;overflow-y:auto;overscroll-behavior-y:contain;padding-top:8px}
+  .note{padding:8px 16px;margin:0;color:var(--dim);font-size:14px}
+  .list{position:relative;margin:0 var(--pad);contain:size layout style}
+  #list .row{contain:strict}
+  .row{position:absolute;left:0;right:0;height:var(--row);display:grid;grid-template-columns:1fr auto;
+       gap:12px;align-items:center;padding:0 8px;margin:0 -6px;border-radius:10px}
+  .row::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:1px;background:var(--rail)}
+  .tx{min-width:0}
+  .t,.a{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .t{font-size:16px;font-weight:600;line-height:1.25}
+  .a{font-size:13px;color:var(--dim);margin-top:2px}
+  .quick{width:44px;height:44px;margin-right:-8px;border:0;background:none;padding:0;color:var(--dim);font-size:26px;line-height:1;
+         display:grid;place-items:center}
+  .meter{position:fixed;right:8px;top:calc(8px + env(safe-area-inset-top));z-index:2;padding:4px 8px;border-radius:8px;
+         background:var(--riser);border:1px solid var(--edge);font:12px/1.3 ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<div class="meter" id="meter">late frames: 0</div>
+<div id="songs">
+  <p class="note">Reused rows, own scroll area: the songbook's list exactly as it scrolls, with nothing else. Scroll up and down the way you do in the songbook. Is it smooth?</p>
+  <div class="list" id="list"></div>
+</div>
+<script>
+(() => {
+"use strict";
+// The songbook's list code (index.html), unchanged apart from leaving out labels and saved songs.
+const $ = id => document.getElementById(id);
+const list = $("list"), scroller = $("songs");
+const ROW = 62, OVERSCAN = 24;
+let view = [], pool = new Map();
+const spare = [];
+function makeRow() {
+  const el = document.createElement("div");
+  el.className = "row";
+  el.innerHTML = `<span class="tx"><span class="t"></span><span class="a"></span></span><button type="button" class="quick">♡</button>`;
+  el._t = el.querySelector(".t"); el._a = el.querySelector(".a");
+  return el;
+}
+function fillRow(el, pos) {
+  const s = view[pos];
+  el._pos = pos;
+  el.style.transform = `translateY(${pos * ROW}px)`;
+  el._t.textContent = s.t;
+  el._a.textContent = s.by;
+  return el;
+}
+let raf = 0;
+function draw(listTop) {
+  const top = listTop ?? list.getBoundingClientRect().top;
+  const first = Math.max(0, Math.floor(-top / ROW) - OVERSCAN);
+  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + OVERSCAN);
+  const free = [];
+  for (const [pos, el] of pool) if (pos < first || pos >= last) { free.push(el); pool.delete(pos); }
+  const frag = document.createDocumentFragment();
+  for (let pos = first; pos < last; pos++) {
+    if (pool.has(pos)) continue;
+    let el = free.pop();
+    if (!el) { el = spare.pop() || makeRow(); frag.appendChild(el); }
+    fillRow(el, pos);
+    pool.set(pos, el);
+  }
+  for (const el of free) { el.remove(); spare.push(el); }
+  if (frag.firstChild) list.appendChild(frag);
+}
+let frame = 0;
+function onFrame() {
+  frame = 0;
+  const y = scroller.scrollTop, listTop = list.getBoundingClientRect().top;
+  draw(listTop);
+}
+scroller.addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onFrame); }, {passive: true});
+fetch("songbook.json", {cache: "no-cache"}).then(r => r.json()).then(d => {
+  const v2 = (d.v || 1) >= 2;
+  view = d.s.map(r => ({t: r[0], by: (v2 ? r[5] : r[4]) || d.a[r[1]]}));
+  list.style.height = view.length * ROW + "px";
+  draw();
+});
+
+// Counts frames over 25 ms while scrolling.
+const meter = $("meter");
+let late = 0, all = 0, last = 0, looping = false, lastScroll = 0, shown = 0;
+const tick = t => {
+  if (last) { all++; if (t - last > 25) late++; }
+  last = t;
+  if (t - shown > 500) { shown = t; meter.textContent = `late frames: ${late} of ${all}`; }
+  if (performance.now() - lastScroll < 600) requestAnimationFrame(tick); else { looping = false; last = 0; }
+};
+scroller.addEventListener("scroll", () => { lastScroll = performance.now(); if (!looping) { looping = true; requestAnimationFrame(tick); } }, {passive: true});
+})();
+</script>
+</body>
+</html>
