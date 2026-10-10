@@ -3,14 +3,17 @@
     python3 tools/sheet.py --out songbook-sheet.pdf
     python3 tools/sheet.py --wifi-name "Guest" --wifi-password secret
 
-Page 1 is an A4 poster for the wall or the host's desk; page 2 is four A6
-table cards to cut out. With --wifi-name, both pages also carry a QR code that
+Page 1 is an A4 poster for the wall or the host's desk, with what the site
+does listed big under the QR code (the song count comes from songbook.json);
+page 2 is four A6 table cards to cut out, with three of those features. With --wifi-name, both pages also carry a QR code that
 joins the venue's Wi-Fi. The PDF can carry the Wi-Fi password, so
 keep it out of the repo.
 """
 import argparse
+import json
 import re
 import sys
+from pathlib import Path
 
 from reportlab.graphics import renderPDF
 from reportlab.graphics.barcode.qr import QrCodeWidget
@@ -86,36 +89,141 @@ def wifi_block(c, x, y, qr_size, wifi, scale=1.0):
         text(c, tx + 21 * mm * scale, ry, value, "Helvetica-Bold", 13 * scale)
 
 
+SONGBOOK = Path(__file__).resolve().parent.parent / "songbook.json"
+
+
+def song_count():
+    """"18,000+" from the list itself, so the poster stays true as the list grows."""
+    try:
+        n = len(json.loads(SONGBOOK.read_text())["s"])
+    except (OSError, ValueError, KeyError):
+        return "every"
+    return f"{n // 1000 * 1000:,}+" if n >= 2000 else f"{n:,}"
+
+
+def features():
+    return [
+        ("search", f"Search {song_count()} songs", "By title or artist"),
+        ("sliders", "Browse by genre & decade", "Or by male, female and duet"),
+        ("heart", "Save your favourites", "Kept on your phone for next time"),
+        ("sparkle", "Get songs picked for you", "Based on the ones you save"),
+        ("play", "Listen before you sing", "On Spotify, Apple Music or YouTube"),
+        ("calendar", "See our next karaoke nights", "Along the bottom of the page"),
+    ]
+
+
+def icon(c, kind, cx, cy, r):
+    """A white pictogram in a pink disc of radius r, centred on (cx, cy)."""
+    c.saveState()
+    c.setFillColor(ACCENT)
+    c.circle(cx, cy, r, stroke=0, fill=1)
+    white = HexColor("#FFFFFF")
+    c.setFillColor(white)
+    c.setStrokeColor(white)
+    c.setLineWidth(r * 0.14)
+    c.setLineCap(1)
+    c.setLineJoin(1)
+    k = r
+    if kind == "search":
+        c.circle(cx - 0.12 * k, cy + 0.12 * k, 0.32 * k, stroke=1, fill=0)
+        c.line(cx + 0.12 * k, cy - 0.12 * k, cx + 0.42 * k, cy - 0.42 * k)
+    elif kind == "sliders":
+        for dy, knob in ((0.32, -0.18), (0, 0.2), (-0.32, -0.05)):
+            c.line(cx - 0.45 * k, cy + dy * k, cx + 0.45 * k, cy + dy * k)
+            c.circle(cx + knob * k, cy + dy * k, 0.11 * k, stroke=0, fill=1)
+    elif kind == "heart":
+        p = c.beginPath()
+        p.moveTo(cx, cy - 0.45 * k)
+        p.curveTo(cx - 0.2 * k, cy - 0.28 * k, cx - 0.52 * k, cy - 0.05 * k, cx - 0.52 * k, cy + 0.17 * k)
+        p.curveTo(cx - 0.52 * k, cy + 0.47 * k, cx - 0.12 * k, cy + 0.55 * k, cx, cy + 0.27 * k)
+        p.curveTo(cx + 0.12 * k, cy + 0.55 * k, cx + 0.52 * k, cy + 0.47 * k, cx + 0.52 * k, cy + 0.17 * k)
+        p.curveTo(cx + 0.52 * k, cy - 0.05 * k, cx + 0.2 * k, cy - 0.28 * k, cx, cy - 0.45 * k)
+        p.close()
+        c.drawPath(p, stroke=0, fill=1)
+    elif kind == "sparkle":
+        pts = [(0, 0.55), (0.14, 0.14), (0.55, 0), (0.14, -0.14), (0, -0.55), (-0.14, -0.14), (-0.55, 0), (-0.14, 0.14)]
+        p = c.beginPath()
+        p.moveTo(cx + pts[0][0] * k, cy + pts[0][1] * k)
+        for x, y in pts[1:]:
+            p.lineTo(cx + x * k, cy + y * k)
+        p.close()
+        c.drawPath(p, stroke=0, fill=1)
+    elif kind == "play":
+        p = c.beginPath()
+        p.moveTo(cx - 0.18 * k, cy + 0.38 * k)
+        p.lineTo(cx + 0.42 * k, cy)
+        p.lineTo(cx - 0.18 * k, cy - 0.38 * k)
+        p.close()
+        c.drawPath(p, stroke=0, fill=1)
+    elif kind == "calendar":
+        c.roundRect(cx - 0.42 * k, cy - 0.38 * k, 0.84 * k, 0.72 * k, 0.1 * k, stroke=1, fill=0)
+        c.line(cx - 0.42 * k, cy + 0.12 * k, cx + 0.42 * k, cy + 0.12 * k)
+        c.line(cx - 0.2 * k, cy + 0.34 * k, cx - 0.2 * k, cy + 0.48 * k)
+        c.line(cx + 0.2 * k, cy + 0.34 * k, cx + 0.2 * k, cy + 0.48 * k)
+    c.restoreState()
+
+
+def feature_list(c, x, top, items, size, gap, detail=True):
+    """Icon, bold headline and a dim line under it, one per row, from top downwards."""
+    r = size * 0.62
+    for i, (kind, head, sub) in enumerate(items):
+        y = top - i * gap
+        icon(c, kind, x + r, y - r, r)
+        tx = x + 2 * r + size * 0.55
+        if detail:
+            text(c, tx, y - r + size * 0.05, head, "Helvetica-Bold", size)
+            text(c, tx, y - r - size * 0.78, sub, "Helvetica", size * 0.56, DIM)
+        else:
+            text(c, tx, y - r - size * 0.35, head, "Helvetica-Bold", size)
+
+
+def block_width(c, items, size):
+    """Width of the widest row, so the list can be centred on the page as a block."""
+    r = size * 0.62
+    widest = max(max(c.stringWidth(h, "Helvetica-Bold", size), c.stringWidth(s, "Helvetica", size * 0.56))
+                 for _, h, s in items)
+    return 2 * r + size * 0.55 + widest
+
+
 def poster(c, url, name, wifi=None):
     W, H = A4
     cx = W / 2
-    centred(c, name.upper(), H - 30 * mm, "Helvetica-Bold", 11, FAINT, spacing=3.2)
+    items = features()
+    centred(c, name.upper(), H - 18 * mm, "Helvetica-Bold", 11, FAINT, spacing=3.2)
     c.setFillColor(ACCENT)
-    c.rect(cx - 9 * mm, H - 35 * mm, 18 * mm, 1.1 * mm, stroke=0, fill=1)
-    centred(c, "Find your song", H - 56 * mm, "Helvetica-Bold", 46)
-    centred(c, "Scan with your phone camera to see every song we've got.", H - 68 * mm, "Helvetica", 14, DIM)
-    centred(c, "Search by title or artist, or browse by genre and decade.", H - 75 * mm, "Helvetica", 14, DIM)
+    c.rect(cx - 9 * mm, H - 22.5 * mm, 18 * mm, 1.1 * mm, stroke=0, fill=1)
+    centred(c, "Find your song", H - 40 * mm, "Helvetica-Bold", 44)
+    centred(c, "Scan with your phone camera", H - 50 * mm, "Helvetica", 15, DIM)
 
     if not wifi:
-        size = 104 * mm
-        qr(c, cx - size / 2, H - 87 * mm - size, size, url)
-        top = H - 87 * mm - size - 14 * mm
-        centred(c, "Can't scan it? Type this into your browser:", 34 * mm, "Helvetica", 11, DIM)
-        centred(c, short(url), 27 * mm, "Helvetica-Bold", 12.5)
-        centred(c, "Found your song? Let the host know.", 15 * mm, "Helvetica", 11, FAINT)
+        size = 80 * mm
+        qr(c, cx - size / 2, H - 56 * mm - size, size, url)
+        fs = 23.5
+        bw = block_width(c, items, fs)
+        feature_list(c, cx - bw / 2, H - 145 * mm, items, fs, 19 * mm)
+        centred(c, f"Can't scan it? Go to {short(url)}", 23 * mm, "Helvetica", 12, DIM)
+        centred(c, "Found your song? Show it to the host with your first name.", 14 * mm, "Helvetica", 11, FAINT)
         return
 
-    # Room for the Wi-Fi panel: a smaller songbook QR, the fallback URL on one line.
-    size = 88 * mm
-    qr(c, cx - size / 2, H - 86 * mm - size, size, url)
-    top = H - 86 * mm - size - 11 * mm
-    centred(c, f"Can't scan it? Go to {short(url)}", top - 41 * mm, "Helvetica", 11, DIM)
+    # Room for the Wi-Fi panel: a smaller songbook QR, then the features as headlines in two columns.
+    size = 74 * mm
+    qr(c, cx - size / 2, H - 56 * mm - size, size, url)
+    fs, half = 15, len(items) // 2
+    left, right = items[:half], items[half:]
+    lw = block_width(c, [(k, h, "") for k, h, _ in left], fs)
+    rw = block_width(c, [(k, h, "") for k, h, _ in right], fs)
+    gutter = 10 * mm
+    x0 = cx - (lw + gutter + rw) / 2
+    ftop = H - 56 * mm - size - 8 * mm
+    feature_list(c, x0, ftop, left, fs, 12 * mm, detail=False)
+    feature_list(c, x0 + lw + gutter, ftop, right, fs, 12 * mm, detail=False)
+    centred(c, f"Can't scan it? Go to {short(url)}", ftop - half * 12 * mm - 5 * mm, "Helvetica", 11.5, DIM)
 
     box_x, box_y, box_w, box_h = 22 * mm, 22 * mm, W - 44 * mm, 44 * mm
     c.setFillColor(BOX)
     c.roundRect(box_x, box_y, box_w, box_h, 5 * mm, stroke=0, fill=1)
     wifi_block(c, box_x + 6 * mm, box_y + 6 * mm, 32 * mm, wifi)
-    centred(c, "Found your song? Let the host know.", 12 * mm, "Helvetica", 11, FAINT)
+    centred(c, "Found your song? Show it to the host with your first name.", 12 * mm, "Helvetica", 11, FAINT)
 
 
 def cards(c, url, name, wifi=None):
@@ -135,9 +243,12 @@ def cards(c, url, name, wifi=None):
                 centred(c, name.upper(), y0 + ch - 14 * mm, "Helvetica-Bold", 8, FAINT, cx=cx, spacing=2.2)
                 centred(c, "Find your song", y0 + ch - 24 * mm, "Helvetica-Bold", 21, cx=cx)
                 centred(c, "Scan with your phone camera", y0 + ch - 31 * mm, "Helvetica", 10.5, DIM, cx=cx)
-                size = 62 * mm
+                size = 56 * mm
                 qr(c, cx - size / 2, y0 + ch - 35 * mm - size, size, url)
-                centred(c, short(url), y0 + 12 * mm, "Helvetica", 8.5, DIM, cx=cx)
+                few = [features()[i] for i in (0, 2, 4)]
+                bw = block_width(c, [(k, h, "") for k, h, _ in few], 10.5)
+                feature_list(c, cx - bw / 2, y0 + 45 * mm, few, 10.5, 8 * mm, detail=False)
+                centred(c, short(url), y0 + 10 * mm, "Helvetica", 8.5, DIM, cx=cx)
                 continue
             centred(c, name.upper(), y0 + ch - 11 * mm, "Helvetica-Bold", 8, FAINT, cx=cx, spacing=2.2)
             centred(c, "Find your song", y0 + ch - 20 * mm, "Helvetica-Bold", 19, cx=cx)

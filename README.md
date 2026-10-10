@@ -35,7 +35,10 @@ settings, GitHub issues and renews the certificate itself.
 python3 tools/sheet.py --out songbook-sheet.pdf
 ```
 
-Page 1 is an A4 poster. Page 2 is four A6 table cards to cut out.
+Page 1 is an A4 poster listing what the site does in big type (search, browse,
+favourites, picks, listen, karaoke nights). Page 2 is four A6 table cards to cut
+out. The song count on it comes from `songbook.json`, so reprint after a big
+update.
 `.gitignore` keeps PDFs out of the repo.
 
 To add a second QR code that joins the venue's Wi-Fi (handy where phone signal
