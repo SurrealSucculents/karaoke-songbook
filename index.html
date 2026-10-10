@@ -76,8 +76,10 @@
      paints its own full-width background. */
   .top{position:sticky;top:0;z-index:5;pointer-events:none}
   .top .wrap > *{pointer-events:auto}
-  .bar::before,.more::before{content:"";position:absolute;z-index:-1;top:0;bottom:0;left:calc(50% - 50vw);right:calc(50% - 50vw);
-                             background:#0B0614}
+  /* Solid backgrounds painted by the boxes themselves, widened to the screen edges with two
+     sideways shadows. (A stretched pseudo-element behind them could fail to paint in iOS Safari
+     while the rows slid, letting songs show through above the tabs.) */
+  .bar,.more{background:#0B0614;box-shadow:-100vw 0 #0B0614,100vw 0 #0B0614}
   .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
        padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid #0B0614;transition:border-color .2s}
   .more{position:relative;z-index:1;will-change:transform}
@@ -613,6 +615,9 @@ const list = $("list"), jump = $("jump"), bubble = $("bubble");
 const ROW = 62;
 let pool = new Map();   // position -> element
 let entering = false;   // rows drawn straight after a refresh fade in
+// Once a row has faded in, drop the class so it doesn't linger as its own layer.
+for (const id of ["list", "recsList", "artistList"])
+  $(id).addEventListener("animationend", e => e.target.classList?.remove("enter"));
 
 function refresh(keepScroll) {
   view = compute();
@@ -685,7 +690,9 @@ function draw() {
   for (let pos = first; pos < last; pos++) {
     if (pool.has(pos)) continue;
     const el = rowFor(view[pos], pos);
-    if (entering) { el.classList.add("enter"); el.style.animationDelay = Math.min(k++, 14) * 24 + "ms"; }
+    if (entering) {
+      el.classList.add("enter"); el.style.animationDelay = Math.min(k++, 14) * 24 + "ms";
+    }
     pool.set(pos, el); frag.appendChild(el);
   }
   entering = false;
