@@ -7,6 +7,7 @@
 
 const KEY = "mdk-lab";
 const MODES = [
+  ["ownscroll", "Keep Chrome's toolbars still", "The songs scroll in their own area, so the page itself never scrolls and Chrome leaves its toolbars where they are. (The page reloads.)"],
   ["noshut", "Header never shuts", "The tabs and filters stay where they are; nothing slides."],
   ["instant", "Header without the slide", "It still shuts and opens, but in one step."],
   ["oldglow", "Old background glow", "Brings back the glow that resized with the window (and so with the browser's toolbar)."],
@@ -103,8 +104,10 @@ const ev = (k, v) => events.push({t: now(), k, v});
 
 let looping = false, lastScroll = 0;
 let lastY = null, runDir = 0, runLen = 0, pending = null;
+// In own-scroll mode the songs scroll inside #app, not the page.
+const sc = root.classList.contains("own-scroll") ? $("app") : null;
 function tick(t) {
-  const y = scrollY;
+  const y = sc ? sc.scrollTop : scrollY;
   frames.push([t, y]);
   if (lastY !== null && y !== lastY) {
     const d = Math.sign(y - lastY), step = Math.abs(y - lastY);
@@ -120,7 +123,7 @@ function tick(t) {
   if (now() - lastScroll < 700) requestAnimationFrame(tick);
   else { looping = false; frames.push(null); }
 }
-addEventListener("scroll", () => {
+(sc || window).addEventListener("scroll", () => {
   lastScroll = now();
   if (!looping) { looping = true; requestAnimationFrame(tick); }
 }, {passive: true});
@@ -278,7 +281,10 @@ function openPanel() {
       panel.querySelector("pre").textContent = reportText();
     } else if (b.dataset.k) {
       store.modes[b.dataset.k] = !store.modes[b.dataset.k];
-      save(); applyModes(); reset();
+      save();
+      // The page picks its scrolling once, as it starts.
+      if (b.dataset.k === "ownscroll") { location.reload(); return; }
+      applyModes(); reset();
       panel.querySelectorAll(".sw").forEach(x => x.setAttribute("aria-pressed", !!LAB[x.dataset.k]));
       panel.querySelector("pre").textContent = reportText();
     } else if (b.dataset.a === "copy") {
