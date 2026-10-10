@@ -1,0 +1,1383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08040F">
+<meta name="robots" content="noindex,nofollow">
+<title>Mad Dog Karaoke Songbook (scroll test)</title>
+<meta name="description" content="Find a song to sing at Mad Dog Karaoke, and see when the next karaoke nights are.">
+<meta property="og:title" content="Mad Dog Karaoke Songbook">
+<meta property="og:description" content="Find a song to sing, and see when the next karaoke nights are.">
+<meta property="og:url" content="https://maddogkaraoke.co.uk/">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/png" href="img/favicon-64.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<meta property="og:image" content="https://maddogkaraoke.co.uk/img/logo-512.png">
+<style>
+  :root{
+    --ground:#08040F; --riser:#150C24; --rail:#2A1B3F; --edge:#3D2A57; --lift:#20143A;
+    --ink:#F2EEF7; --dim:#9B8FB0; --faint:#6E6383;
+    --part-a:#ED1F61; --part-b:#1FEAED;
+    --r:10px; --r-lg:16px; --gap:8px; --pad:16px; --tap:48px; --row:62px;
+    --ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --num:"SF Mono",ui-monospace,"Roboto Mono",Menlo,monospace;
+    --glow-a:rgba(237,31,97,.18); --glow-b:rgba(31,234,237,.10);
+    --spring:cubic-bezier(.16,1,.3,1); --ease-in:cubic-bezier(.5,0,.75,0);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;overflow-x:clip}
+  body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--ui);
+       -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+  /* stage lighting: soft pink and cyan glows behind everything */
+  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+       background:radial-gradient(110% 55% at 15% -8%,var(--glow-a),transparent 62%),
+                  radial-gradient(90% 50% at 100% 0,var(--glow-b),transparent 60%),var(--ground)}
+  [hidden]{display:none!important}
+  button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;
+         transition:transform .16s var(--spring),background-color .2s,border-color .2s,color .2s,box-shadow .2s}
+  button:active:not([disabled]){transform:scale(.96)}
+  button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--part-a);outline-offset:2px}
+  .sheet:focus,.page:focus{outline:0}
+  .wrap{max-width:640px;margin:0 auto}
+
+  /* ---------- gate ---------- */
+  .gate{min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;
+        padding:24px var(--pad) calc(24px + env(safe-area-inset-bottom))}
+  .card{width:100%;max-width:380px;background:var(--riser);background:color-mix(in srgb,var(--riser) 88%,transparent);border:1px solid var(--rail);
+        border-radius:var(--r-lg);padding:26px 22px 22px;display:grid;gap:16px;animation:rise .5s var(--spring) both}
+  .mark{display:inline-flex;align-items:center;gap:9px;font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+  .mark em{font-style:normal;background:linear-gradient(90deg,var(--part-a),#FF6FA0 45%,var(--part-b));
+           -webkit-background-clip:text;background-clip:text;color:transparent}
+  /* logo-102.png is 34px at 3x with its rounded corners already in it: nothing to clip or scale */
+  .logo{display:block;flex:0 0 auto;width:34px;height:34px}
+  /* loading equaliser */
+  .eq{display:flex;gap:4px;align-items:flex-end;height:22px}
+  .eq i{width:5px;border-radius:3px;background:linear-gradient(var(--part-b),var(--part-a));height:100%;
+        transform-origin:bottom;animation:eq .9s ease-in-out infinite}
+  .eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}.eq i:nth-child(4){animation-delay:-.15s}
+  @keyframes eq{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+  @keyframes rise{from{opacity:0;translate:0 14px}}
+  .card h1{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:8px 0 0}
+  .card p{margin:0;font-size:14px;color:var(--dim)}
+  .go{font-weight:700;border:0;border-radius:var(--r);color:#fff;padding:13px 16px;min-height:var(--tap);width:100%;
+      background:linear-gradient(135deg,var(--part-a),#B0179E);box-shadow:0 6px 22px -6px rgba(237,31,97,.6)}
+  .go[disabled]{opacity:.5;cursor:default}
+  .quiet{background:none;border:0;color:var(--dim);text-decoration:underline;text-underline-offset:3px;
+         padding:6px 0;min-height:36px;font-size:14px}
+  .msg{padding:13px 15px;border-radius:var(--r);font-size:13.5px;line-height:1.4}
+  .msg b{display:block;font-weight:600;margin-bottom:2px}
+  .msg.stop{background:#2B0D1B;color:#FFC2D4;box-shadow:inset 2px 0 0 var(--part-a)}
+
+  /* ---------- top ---------- */
+  /* The tabs, filters and count slide up behind the logo row when the guest scrolls down and
+     back when they scroll up. The slide is a CSS transition, so it runs on the compositor and
+     stays smooth however busy the page is. The header keeps its height in the page
+     (it's just see-through where they were), so the list underneath never jumps. Each layer
+     paints its own full-width background. */
+  /* Pinned to the screen (fixed) rather than sticky, with the page padded by its height: Safari
+     scrolls fixed layers on its own scrolling thread, and the sliding rows inside no longer make
+     it re-work a sticky element's position mid-scroll. */
+  .top{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;padding-top:var(--bar-h,0px)}
+  .top .wrap > *{pointer-events:auto}
+  /* The logo row and the sliding rows are each the full screen width with a solid background,
+     and each is kept as its own layer for good (will-change). Otherwise Safari makes the logo
+     row a layer when a slide starts and drops it when it ends, redrawing the logo and the
+     gradient title each time, which is when scrolling stuttered. */
+  .top > .wrap{max-width:none}
+  .bar,.more{--side:max(0px, calc((100vw - 640px) / 2));background:#0B0614;will-change:transform}
+  .bar[hidden]{display:none!important}
+  /* Opening or shutting must change nothing but the slide itself (a transform) and the chevron's
+     fade (opacity), both already on layers of their own, so nothing is redrawn or laid out just as
+     the compositor starts the slide. Redrawing then (the logo row for its border colour, the
+     sliding rows when the chevron got and lost a layer for its fade) held up the slide's first
+     frames, which is when scrolling stuttered. Hence: the hairline under the header belongs to the sliding rows and
+     hangs just below them, so shut it shows under the logo row without the logo row changing; the
+     tabs and filters stay tappable when shut (they sit wholly behind the logo row and above the
+     screen). */
+  /* The logo row is its own fixed element, outside the header that opens and shuts, on a layer
+     of its own that nothing ever changes: it never moves and is never redrawn. The header sits
+     below it (padded by its height) and its rows slide up behind it. */
+  .bar{position:fixed;top:0;left:0;right:0;z-index:6;contain:layout paint style}
+  .bar-in{display:flex;align-items:center;gap:10px;
+          padding:calc(12px + env(safe-area-inset-top)) calc(var(--pad) + var(--side)) 10px}
+  /* Safari (WebKit, so every browser on an iPhone) treats a transform that changes between none
+     and a value, or an opacity that reaches or leaves exactly 1, as a change of layout: it lays
+     the header out again and redraws all of the sliding rows, mid-scroll, in the very frame a
+     shut starts or an open ends. So the rows always carry a transform (one that moves them
+     nowhere when open) and the chevron's shown opacity is .99, never 1: opening and shutting
+     then lay out and redraw nothing. */
+  .more{position:relative;z-index:1;padding-inline:var(--side);transform:translate3d(0,0,0);
+        transition:transform .32s var(--spring)}
+  .more::after{content:"";position:absolute;left:0;right:0;top:100%;height:1px;background:var(--rail)}
+  .top.collapsed .more{transform:translate3d(0,-100%,0)}
+  .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
+        color:var(--dim);background:#0B0614;border:1px solid var(--rail);border-top:0;border-radius:0 0 12px 12px;
+        opacity:0;pointer-events:none;transition:opacity .2s;will-change:opacity}
+  .chev svg{width:18px;height:18px}
+  .top.collapsed .chev{opacity:.99;pointer-events:auto}
+  .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
+         border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
+  .share svg{width:16px;height:16px}
+  /* search lives in the filter row: a button that opens into a field */
+  .filters .find{flex:0 0 42px;padding:0;display:grid;place-items:center;color:var(--ink)}
+  .filters .find svg{width:18px;height:18px}
+  .filters.searching > button{display:none}
+  .search{flex:1;position:relative;animation:open .3s var(--spring) both}
+  @keyframes open{from{opacity:0;clip-path:inset(0 0 0 85% round 12px)}}
+  .search input{font:inherit;width:100%;padding:9px 44px 9px 40px;min-height:42px;
+                border-radius:12px;border:1px solid var(--edge);background:var(--riser);color:var(--ink);
+                -webkit-appearance:none;appearance:none;transition:border-color .2s,box-shadow .25s}
+  .search input:focus{outline:0;border-color:var(--part-a);box-shadow:0 0 0 4px rgba(237,31,97,.18)}
+  .search .glass{position:absolute;left:13px;top:50%;translate:0 -50%;width:18px;height:18px;
+                 color:var(--faint);pointer-events:none;transition:color .2s}
+  .search input:focus ~ .glass{color:var(--part-a)}
+  .search input::placeholder{color:var(--faint)}
+  .search input::-webkit-search-cancel-button{display:none}
+  .search .x{position:absolute;right:0;top:0;width:44px;height:42px;border:0;padding:0;
+             background:none;color:var(--dim);font-size:22px;line-height:1;border-radius:var(--r)}
+  /* segmented control with a sliding highlight */
+  .seg{padding:10px var(--pad) 0}
+  .tabs{position:relative;display:flex;padding:4px;border-radius:12px;background:var(--riser);border:1px solid var(--rail)}
+  .tabs .pill{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / 3);border-radius:9px;
+              background:var(--lift);border:1px solid var(--edge);box-shadow:0 2px 10px rgba(0,0,0,.35);
+              transition:transform .38s var(--spring)}
+  .tabs[data-on="artists"] .pill{transform:translateX(100%)}
+  .tabs[data-on="foryou"] .pill{transform:translateX(200%)}
+  .tabs button{position:relative;flex:1;font-weight:600;font-size:14px;padding:8px 6px;min-height:38px;border:0;
+               background:none;color:var(--dim);white-space:nowrap}
+  .tabs button.on{color:var(--ink)}
+  .filters button{flex:1;font-weight:600;font-size:14px;padding:9px 6px;min-height:42px;
+             border:1px solid var(--rail);border-radius:var(--r);background:transparent;color:var(--dim);
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .filters button.on{background:rgba(237,31,97,.12);border-color:rgba(237,31,97,.55);color:var(--ink)}
+  .tabs .heart{color:var(--part-a);margin-right:4px;display:inline-block}
+  .tabs button.on .heart{animation:beat .5s var(--spring)}
+  .eyebrow .quiet{margin-left:auto;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;min-height:0;padding:0}
+  .filters{display:flex;gap:var(--gap);padding:8px var(--pad) 0}
+  .filters button{font-weight:500}
+  .filters button .caret{color:var(--faint);margin-left:4px}
+  .filters button.clear{flex:0 0 auto;padding:9px 14px;border-color:transparent;color:var(--dim);
+                        text-decoration:underline;text-underline-offset:3px}
+  .eyebrow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+           padding:14px var(--pad) 6px;font-variant-numeric:tabular-nums}
+  .eyebrow .count{display:grid;gap:2px}
+  .eyebrow .note{font-size:12.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint)}
+
+  /* ---------- list ---------- */
+  /* Containment: the list has a set height and every row a set size, so changing a row's text
+     never makes the browser re-lay out anything outside that row. */
+  .list{position:relative;margin:0 var(--pad);contain:size layout style}
+  #list .row{contain:strict}
+  .row{position:absolute;left:0;right:0;height:var(--row);display:grid;grid-template-columns:1fr auto;
+       gap:12px;align-items:center;padding:0 8px;margin:0 -6px;border-radius:10px;cursor:pointer;
+       transition:background-color .2s}
+  .row::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:1px;background:var(--rail)}
+  /* Mouse only: on a touchscreen a resting finger (e.g. starting a scroll) would light rows up. */
+  @media (hover:hover) and (pointer:fine){.row:hover{background:var(--riser)}.row:active{background:var(--lift)}}
+  .row.enter{animation:rowin .42s var(--spring) both}
+  @keyframes rowin{from{opacity:0;translate:0 12px}}
+  .tx{min-width:0}
+  .t,.a{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .t{font-size:16px;font-weight:600;line-height:1.25}
+  .a{font-size:13px;color:var(--dim);margin-top:2px}
+  .n{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--faint)}
+  .n::after{content:" ›";font-family:var(--ui);font-size:17px;color:var(--faint)}
+  .empty{padding:40px var(--pad);text-align:center;color:var(--dim);display:grid;gap:12px;justify-items:center;
+         animation:rise .4s var(--spring) both}
+  .empty b{color:var(--ink);font-size:17px}
+
+
+  /* ---------- sheets ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(5,2,8,.68);z-index:20;display:flex;align-items:flex-end;justify-content:center;
+         -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:fade .25s ease-out both}
+  .scrim.leaving{animation:fade .22s ease-in reverse both}
+  @keyframes fade{from{opacity:0}}
+  .sheet{width:100%;max-width:640px;max-height:88vh;max-height:88svh;overflow:auto;background:var(--riser);
+         border:1px solid var(--rail);border-bottom:0;border-radius:var(--r-lg) var(--r-lg) 0 0;
+         padding:10px 20px calc(18px + env(safe-area-inset-bottom));display:grid;gap:14px;
+         box-shadow:0 -20px 60px rgba(0,0,0,.45);animation:up .45s var(--spring) both}
+  .leaving .sheet{animation:down .22s var(--ease-in) both}
+  @keyframes up{from{translate:0 100%}}
+  @keyframes down{to{translate:0 100%}}
+  .grab{width:40px;height:4px;border-radius:2px;background:var(--edge);justify-self:center;margin-bottom:4px}
+  .sheet h2{font-size:22px;font-weight:700;letter-spacing:-.015em;line-height:1.15;margin:0}
+  .sheet .sub{margin:-8px 0 0;color:var(--dim);font-size:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip.on{animation:beat .35s var(--spring)}
+  .chip{font-weight:600;font-size:14px;padding:9px 13px;min-height:42px;border:1px solid var(--rail);
+        border-radius:var(--r);background:transparent;color:var(--dim);display:inline-flex;align-items:baseline;gap:7px}
+  .chip i{font-style:normal;font-family:var(--num);font-variant-numeric:tabular-nums;font-size:11.5px;
+          font-weight:400;color:var(--faint)}
+  .chip.on{background:rgba(237,31,97,.14);border-color:rgba(237,31,97,.6);color:var(--ink)}
+  .chip.on i{color:var(--dim)}
+  .chip[disabled]{opacity:.35;cursor:default}
+  .acts{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .acts .go{flex:1}
+  .acts .go.small{flex:0 0 auto;width:auto;margin-left:auto;min-height:40px;padding:9px 16px;font-size:14px;white-space:nowrap}
+
+  /* song modal: centred card instead of a bottom sheet */
+  .scrim.modal{align-items:center;padding:16px}
+  .scrim.modal .sheet{border:1px solid var(--rail);border-radius:var(--r-lg);max-height:calc(100svh - 32px);
+                      padding:18px 18px 14px;gap:12px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:pop .38s var(--spring) both}
+  .scrim.modal.leaving .sheet{animation:pop .18s var(--ease-in) reverse both}
+  .scrim.modal .grab{display:none}
+  /* the song card's Close sits below the card, not inside it */
+  .scrim.modal{flex-direction:column;justify-content:center;gap:14px}
+  .scrim.modal .sheet{max-height:calc(100svh - 32px - 62px)}
+  .sheet-close{display:none}
+  .scrim.modal .sheet-close{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 22px;flex:0 0 auto;
+                            border:1px solid var(--edge);border-radius:999px;background:var(--riser);color:var(--ink);
+                            font-size:16px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:pop .38s var(--spring) both}
+  .scrim.modal.leaving .sheet-close{animation:pop .18s var(--ease-in) reverse both}
+  .sheet-close svg{width:18px;height:18px}
+  .icon-share{flex:0 0 auto;display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid var(--edge);
+              border-radius:var(--r);background:transparent;color:var(--ink)}
+  .icon-share svg{width:20px;height:20px}
+  @keyframes pop{from{opacity:0;scale:.92;translate:0 10px}}
+  @keyframes beat{40%{scale:1.3}}
+  .head{display:flex;gap:12px;align-items:flex-start}
+  .head > div{flex:1;min-width:0;display:grid;gap:3px}
+  .head .sub{margin:0}
+  .fav{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;font-size:14px;
+       font-weight:600;border:1px solid var(--edge);border-radius:999px;background:transparent;color:var(--ink)}
+  .fav b{color:var(--dim);font-size:16px;line-height:1}
+  .fav b{display:inline-block}
+  .fav[aria-pressed="true"]{background:var(--part-a);border-color:var(--part-a);color:#fff;box-shadow:0 4px 18px -4px rgba(237,31,97,.7)}
+  .fav[aria-pressed="true"] b{color:#fff;animation:beat .45s var(--spring)}
+  .shared{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
+  .shared li{padding:9px 2px;border-bottom:1px solid var(--rail);font-weight:600;font-size:15px}
+  .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
+  .head .meta{margin:0;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .ask{margin:0;padding:10px 12px;border-radius:var(--r);background:var(--lift);font-size:14px;color:var(--dim)}
+  /* song modal: title, artist and host prompt big enough to hold up to the host */
+  .song-top{align-items:center}
+  .song-top .meta{flex:1;min-width:0}
+  .song-big{display:grid;gap:6px}
+  .sheet .song-big h2{font-size:clamp(36px,11vw,64px);line-height:1.02;letter-spacing:-.025em;overflow-wrap:anywhere}
+  .sheet .song-big .sub{margin:0;font-size:clamp(24px,7.5vw,38px);font-weight:600;line-height:1.1;color:var(--ink);overflow-wrap:anywhere}
+  .ask.big{padding:14px 16px;font-size:clamp(20px,6vw,28px);font-weight:700;line-height:1.2;color:var(--ink)}
+  .go.request{font-size:20px;min-height:58px}
+  .artist-link{background:none;border:0;padding:6px 0;min-height:44px;color:var(--ink);font-size:15px;font-weight:600;
+               text-decoration:underline;text-decoration-color:var(--part-a);text-decoration-thickness:2px;text-underline-offset:4px;text-align:left}
+  .acts .icon-share{margin-left:auto}
+  /* request screen: shown to the host, so as big and plain as it can be */
+  .request-screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;gap:clamp(20px,5vh,48px);
+                  justify-content:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+                  background:var(--riser);overflow:auto;animation:fade .2s ease-out both}
+  .request-screen.leaving{animation:fade .2s ease-in reverse both}
+  .request-screen:focus{outline:0}
+  .req-ask{margin:auto 0 0;align-self:center;padding:10px 18px;border-radius:999px;color:#fff;font-weight:800;
+           font-size:clamp(22px,7vw,40px);text-transform:uppercase;letter-spacing:.04em;
+           background:linear-gradient(135deg,var(--part-a),#B0179E)}
+  .req-song{text-align:center;display:grid;gap:clamp(10px,2vh,20px)}
+  .req-song h2{margin:0;font-size:clamp(48px,15vw,120px);font-weight:800;line-height:1;letter-spacing:-.03em;
+               color:var(--ink);overflow-wrap:anywhere}
+  .req-song p{margin:0;font-size:clamp(30px,9vw,64px);font-weight:600;line-height:1.1;color:var(--ink);opacity:.85;overflow-wrap:anywhere}
+  .req-done{margin-top:auto;min-height:52px;border:1px solid var(--edge);border-radius:var(--r);background:transparent;
+            color:var(--dim);font-size:16px;font-weight:600}
+  .listen{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;
+          border:1px solid var(--edge);border-radius:var(--r);background:transparent;font-size:15px;font-weight:600}
+  .listen svg{width:16px;height:16px;color:var(--part-b)}
+  .sheet > .swap{display:grid;gap:12px;animation:rise .3s var(--spring) both}
+  .back-link{justify-self:start;background:none;border:0;padding:0;min-height:32px;color:var(--dim);font-size:14px;font-weight:600}
+  .apps{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
+  .apps a{display:flex;align-items:center;gap:12px;min-height:50px;padding:0 4px;border-bottom:1px solid var(--rail);
+          color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:600}
+  .apps a:active{background:var(--lift)}
+  .apps b{flex:1;font-weight:600}
+  .apps a::after{content:"›";color:var(--faint);font-size:18px}
+  .apps .more-apps{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:46px;padding:0 4px;
+                   border:0;border-bottom:1px solid var(--rail);background:none;color:var(--dim);font-size:14.5px;font-weight:600}
+  .apps .more-apps svg{width:16px;height:16px}
+  .apps li.extra{animation:rise .3s var(--spring) both}
+
+  /* schedule sheet */
+  .cal{display:grid;gap:14px}
+  .cal h3{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .cal ol{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
+  .cal li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:11px 4px;
+          border-bottom:1px solid var(--rail);font-size:15.5px;font-weight:600}
+  .cal li span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--part-a)}
+  .acts.stick{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));background:var(--riser);
+               padding:10px 0 calc(18px + env(safe-area-inset-bottom));margin-bottom:calc(-18px - env(safe-area-inset-bottom))}
+
+  /* ---------- dates dock: upcoming nights along the bottom ---------- */
+  /* Solid and on its own layer: a blurred, translucent bar had to be repainted every frame
+     while the page or the browser's toolbar moved, which stuttered on phones. */
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;border-top:1px solid var(--rail);animation:rise .5s .15s var(--spring) both;
+        background:#0B0614;will-change:transform;
+        padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
+  .dock .wrap{display:flex;align-items:center;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;
+              scroll-padding-inline:var(--pad);padding:0 var(--pad);scrollbar-width:none;overscroll-behavior-x:contain}
+  .dock .wrap::-webkit-scrollbar{display:none}
+  .dock .lead{flex:0 0 auto;scroll-snap-align:start;font-size:10.5px;font-weight:700;letter-spacing:.14em;
+              text-transform:uppercase;color:var(--dim);white-space:nowrap;padding-right:2px}
+  .night{flex:0 0 auto;scroll-snap-align:start;display:grid;gap:1px;padding:5px 12px 6px;white-space:nowrap;
+         font-size:13.5px;font-weight:700;line-height:1.2;border:1px solid var(--rail);border-radius:14px;background:var(--riser)}
+  .night .when span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
+  .night .venue{font-size:11px;font-weight:600;color:var(--dim)}
+  /* Tonight's glow fades a pre-drawn halo in and out (opacity only), so the bar isn't repainted. */
+  .night.now{position:relative;border-color:var(--part-a);box-shadow:inset 0 0 0 1px var(--part-a)}
+  .night.now::after{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;opacity:0;
+                    box-shadow:0 0 16px rgba(237,31,97,.55);animation:glow 2.6s ease-in-out infinite;will-change:opacity}
+  @keyframes glow{50%{opacity:1}}
+  .night.now .when span{color:var(--part-a)}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#0B0616;
+         font-weight:600;font-size:14px;padding:10px 16px;border-radius:999px;pointer-events:none;white-space:nowrap;
+         box-shadow:0 10px 30px rgba(0,0,0,.5);animation:pop .35s var(--spring) both}
+  .toast.leaving{animation:pop .2s var(--ease-in) reverse both}
+
+  /* ---------- artist page ---------- */
+  .page{position:fixed;inset:0;z-index:10;background:var(--ground);overflow:auto;-webkit-overflow-scrolling:touch;
+        box-shadow:-20px 0 60px rgba(0,0,0,.5);animation:slidein .42s var(--spring) both}
+  .page.leaving{animation:slidein .24s var(--ease-in) reverse both}
+  @keyframes slidein{from{translate:100% 0}}
+  .page::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+        background:radial-gradient(100% 45% at 85% -5%,var(--glow-a),transparent 60%)}
+  .page-top{position:sticky;top:0;background:#0B0614;padding:calc(8px + env(safe-area-inset-top)) var(--pad) 0;z-index:2}
+  .back{background:none;border:0;color:var(--dim);font-size:15px;font-weight:600;min-height:var(--tap);padding:0 12px 0 0}
+  .page h1{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:4px 0 4px;overflow-wrap:anywhere}
+  .page .sub{color:var(--dim);font-size:14px;margin:0 0 12px}
+  .plain .row{position:relative;height:auto;min-height:var(--row);padding:10px 8px}
+  .plain .t,.plain .a{white-space:normal}
+  .plain{margin:0 var(--pad);border-top:1px solid var(--rail)}
+
+  /* section labels in the song list ("Your saved songs", "All songs") */
+  #list .row.label{cursor:default;align-items:end;padding-bottom:9px;grid-template-columns:1fr}
+  #list .row.label .t{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--part-a)}
+  #list .row.label .a{font-size:12px;color:var(--faint)}
+  #list .row.label::after{display:none}
+  .quick{width:44px;height:44px;margin-right:-8px;border:0;background:none;padding:0;
+         color:var(--dim);font-size:26px;line-height:1;display:grid;place-items:center}
+  .quick[aria-pressed="true"]{color:var(--part-a);text-shadow:0 0 14px rgba(237,31,97,.5)}
+  .quick.pop{animation:beat .45s var(--spring)}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+                         animation-delay:0s!important;transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+
+<main class="gate" id="gate">
+  <div class="card" id="gateCard">
+    <div class="mark"><img class="logo" src="img/logo-102.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></div>
+    <h1 id="gateTitle">Opening the songbook…</h1>
+    <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="msg stop" id="gateMsg" role="alert" hidden></div>
+    <button class="go" id="gateGo" type="button" hidden>Try again</button>
+  </div>
+</main>
+
+<div id="app" hidden>
+  <div class="bar" id="bar"><div class="bar-in"><span class="mark"><img class="logo" src="img/logo-102.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></span>
+        <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
+          d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div></div>
+  <header class="top" id="top">
+    <div class="wrap">
+      <div class="more" id="more">
+      <div class="seg"><nav class="tabs" id="tabs" data-on="songs" aria-label="View">
+        <span class="pill" aria-hidden="true"></span>
+        <button type="button" class="on" data-tab="songs" aria-pressed="true">Songs</button>
+        <button type="button" data-tab="artists" aria-pressed="false">Artists</button>
+        <button type="button" data-tab="foryou" aria-pressed="false"><span class="heart" aria-hidden="true">✦</span>For you</button>
+      </nav></div>
+      <div class="filters" id="filters">
+        <button type="button" id="fGenre" aria-haspopup="dialog">Genre<span class="caret">▾</span></button>
+        <button type="button" id="fDecade" aria-haspopup="dialog">Decade<span class="caret">▾</span></button>
+        <button type="button" id="fVoice" aria-haspopup="dialog" hidden>Singer<span class="caret">▾</span></button>
+        <button type="button" class="clear" id="fClear" hidden>Clear</button>
+        <button type="button" class="find" id="find" aria-label="Search"><svg viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path
+          d="m20 20-3.5-3.5"/></svg></button>
+        <div class="search" id="searchBox" hidden>
+          <input id="q" type="search" placeholder="Search songs or artists" autocomplete="off" autocorrect="off"
+                 autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search songs or artists">
+          <svg class="glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+               aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <button class="x" id="qx" type="button" aria-label="Close search">×</button>
+        </div>
+      </div>
+      <div class="eyebrow"><span class="count"><span id="summary" aria-live="polite"></span>
+        </span>
+        <button class="quiet" type="button" id="favShare" hidden>Share my saved songs</button>
+        <button class="quiet" type="button" id="recsMore" hidden>Refresh</button></div>
+      <button class="chev" id="chev" type="button" aria-label="Show tabs and filters" aria-controls="more"
+              aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      </div>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="list" id="list" role="list"></div>
+    <div class="empty" id="empty" hidden>
+      <b id="emptyHead">Nothing matches that</b>
+      <span id="emptyWhy">Try a different spelling, or fewer filters.</span>
+      <button class="quiet" type="button" id="emptyReset">Clear search and filters</button>
+    </div>
+  </div>
+  <aside class="dock" id="dock" aria-label="Upcoming karaoke nights" hidden><div class="wrap" id="dockRow" role="list"></div></aside>
+</div>
+
+<section class="page" id="artistPage" hidden aria-labelledby="artistName" tabindex="-1">
+  <div class="page-top">
+    <div class="wrap">
+      <button class="back" type="button" id="artistBack">‹ Back</button>
+      <h1 id="artistName"></h1>
+      <p class="sub" id="artistSub"></p>
+    </div>
+  </div>
+  <div class="wrap"><div class="plain" id="artistList" role="list"></div></div>
+  <div class="foot"></div>
+</section>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<section class="request-screen" id="request" role="dialog" aria-modal="true" aria-labelledby="reqTitle" tabindex="-1" hidden>
+  <p class="req-ask">Show to host</p>
+  <div class="req-song"><h2 id="reqTitle"></h2><p id="reqBy"></p></div>
+  <button type="button" class="req-done" id="reqDone">Done</button>
+</section>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1"></div>
+  <button type="button" class="sheet-close" id="sheetClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>Close</button>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const DATA_URL = "songbook.json";
+const SCHEDULE_URL = "schedule.json";
+const HOME = location.origin + location.pathname;
+const DECADES = [
+  {id: "pre60", label: "Pre-60s", test: y => y < 1960},
+  {id: "60", label: "60s", test: y => y >= 1960 && y < 1970},
+  {id: "70", label: "70s", test: y => y >= 1970 && y < 1980},
+  {id: "80", label: "80s", test: y => y >= 1980 && y < 1990},
+  {id: "90", label: "90s", test: y => y >= 1990 && y < 2000},
+  {id: "00", label: "2000s", test: y => y >= 2000 && y < 2010},
+  {id: "10", label: "2010s", test: y => y >= 2010 && y < 2020},
+  {id: "20", label: "2020s", test: y => y >= 2020},
+];
+const $ = id => document.getElementById(id);
+const MOTION = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Play an element's "leaving" animation, then hide it. Showing it again cancels that.
+const leaveTimers = new Map();
+function leave(el, ms) {
+  el.classList.add("leaving");
+  clearTimeout(leaveTimers.get(el));
+  leaveTimers.set(el, setTimeout(() => { el.hidden = true; el.classList.remove("leaving"); }, MOTION ? ms : 0));
+}
+function reveal(el) {
+  clearTimeout(leaveTimers.get(el));
+  el.classList.remove("leaving");
+  el.hidden = false;
+}
+const isOpen = el => !el.hidden && !el.classList.contains("leaving");
+const fmt = n => n.toLocaleString("en-GB");
+const plural = (n, one, many) => `${fmt(n)} ${n === 1 ? one : many}`;
+const esc = s => s.replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
+const fold = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  .replace(/&/g, " and ").replace(/['’`]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const letterOf = k => { const c = k.charAt(0); return c >= "a" && c <= "z" ? c.toUpperCase() : "#"; };
+
+/* ================================================================ load */
+
+async function loadList() {
+  const res = await fetch(DATA_URL, {cache: "no-cache"});
+  if (!res.ok) throw new Error("fetch");
+  return res.json();
+}
+
+// The dates are a nice extra: if they don't load, the songbook still opens without them.
+async function loadSchedule() {
+  try {
+    const res = await fetch(SCHEDULE_URL, {cache: "no-cache"});
+    if (!res.ok) return {nights: []};
+    const data = await res.json();
+    return {nights: (data.nights || []).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort(),
+            venue: typeof data.venue === "string" ? data.venue.trim() : ""};
+  } catch {
+    return {nights: []};
+  }
+}
+
+const gateTitle = $("gateTitle"), gateGo = $("gateGo"), gateMsg = $("gateMsg");
+
+function gateError(title, body) {
+  gateTitle.textContent = "Couldn't open the songbook";
+  gateMsg.innerHTML = `<b>${esc(title)}</b>${esc(body)}`;
+  gateMsg.hidden = false;
+  gateGo.hidden = false;
+  $("eq").hidden = true;
+}
+
+let busy = false;
+async function openBook() {
+  if (busy) return;
+  busy = true;
+  gateTitle.textContent = "Opening the songbook…"; gateMsg.hidden = true; gateGo.hidden = true; $("eq").hidden = false;
+  try {
+    const [data, schedule] = await Promise.all([loadList(), loadSchedule()]);
+    start(data, schedule);
+  } catch (e) {
+    gateError("Check you're online", "Then try again.");
+  } finally {
+    busy = false;
+  }
+}
+gateGo.onclick = openBook;
+
+/* ================================================================ favourites */
+
+// Saved on this device only (localStorage). Keyed by title and artist, not list position,
+// so favourites survive the song list being rebuilt.
+const FAV_KEY = "mdk-favourites";
+const favKey = s => s.t + "\n" + s.by;
+let FAVS = new Set();
+try { FAVS = new Set(JSON.parse(localStorage.getItem(FAV_KEY)) || []); } catch {}
+function saveFavs() {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify([...FAVS])); } catch {}
+  // Asks the browser not to clear them when space runs low; quietly ignored where unsupported.
+  navigator.storage?.persist?.().catch(() => {});
+}
+const isFav = s => FAVS.has(favKey(s));
+function toggleFav(s) {
+  isFav(s) ? FAVS.delete(favKey(s)) : FAVS.add(favKey(s));
+  saveFavs();
+}
+
+/* ================================================================ app */
+
+let SONGS = [], ARTISTS = [], GENRES = [], NIGHTS = [], VENUE = "";
+const VOICES = ["Male", "Female", "Duet"];
+const state = {tab: "songs", q: "", genres: new Set(), decades: new Set(), voices: new Set()};
+let view = [];   // what the list is showing right now
+
+function start(data, schedule) {
+  GENRES = data.g;
+  NIGHTS = schedule.nights;
+  VENUE = schedule.venue || "";
+  ARTISTS = data.a.map((name, i) => {
+    const k = fold(name).replace(/^the /, "");
+    return {i, name, k, letter: letterOf(k), songs: []};
+  });
+  SONGS = data.s.map((r, i) => {
+    // v2 rows: [title, artist, year, genre, voice, credit?]; v1 rows had the credit in slot 4.
+    const v2 = (data.v || 1) >= 2;
+    const [t, ai, y, g] = r;
+    const credit = v2 ? r[5] : r[4];
+    const v = v2 && r[4] > 0 ? r[4] - 1 : -1;
+    const artist = ARTISTS[ai];
+    const by = credit || artist.name;
+    const ft = fold(t);
+    const s = {i, t, by, artist, y, g, v, ft, fa: fold(by), letter: letterOf(ft),
+               dec: y ? DECADES.findIndex(d => d.test(y)) : -1};
+    artist.songs.push(s);
+    return s;
+  });
+  for (const a of ARTISTS) {
+    const c = new Map();
+    for (const s of a.songs) if (s.g >= 0) c.set(s.g, (c.get(s.g) || 0) + 1);
+    a.genre = [...c].sort((x, y) => y[1] - x[1])[0]?.[0] ?? -1;
+  }
+  $("fVoice").hidden = !SONGS.some(s => s.v >= 0);
+  $("gate").hidden = true;
+  $("app").hidden = false;
+  document.title = "Mad Dog Karaoke";
+  // Shared links carry ?song=…&by=… or ?dates; open what was shared, then tidy the address.
+  const p = new URLSearchParams(location.search);
+  history.replaceState({v: "list"}, "", location.pathname);
+  buildDock();
+  refresh();
+  if (p.has("song")) {
+    const s = findSong(p.get("song"), p.get("by") || "");
+    if (s) songSheet(s);
+  } else if (p.has("t")) {
+    const bys = p.getAll("b");
+    const found = p.getAll("t").map((t, i) => findSong(t, bys[i] || "")).filter(Boolean);
+    if (found.length) sharedFavsSheet([...new Set(found)]);
+  } else if (p.has("dates") && upcoming().length) {
+    datesSheet();
+  }
+}
+
+const songMode = () => state.tab !== "artists";
+
+function findSong(t, by) {
+  return SONGS.find(s => s.t === t && (!by || s.by === by)) ||
+         SONGS.find(s => s.ft === fold(t) && (!by || s.fa === fold(by)));
+}
+
+// The For you tab has no filter row, so filters picked on Songs or Artists don't apply there
+// (they're kept for when the guest goes back).
+function anyFilter() { return state.tab !== "foryou" && (state.genres.size || state.decades.size || state.voices.size); }
+
+function passes(s) {
+  if (state.tab === "foryou") return true;
+  if (state.genres.size && !state.genres.has(s.g)) return false;
+  if (state.decades.size && !state.decades.has(s.dec)) return false;
+  if (state.voices.size && !state.voices.has(s.v)) return false;
+  return true;
+}
+
+function matcher(q) {
+  const words = fold(q).split(" ").filter(Boolean);
+  if (!words.length) return null;
+  const whole = words.join(" ");
+  return {
+    words, whole,
+    song(s) {
+      const hay = s.ft + " " + s.fa;
+      for (const w of words) if (!hay.includes(w)) return -1;
+      // "queen" means the band first, then titles that start with it.
+      if (s.artist.k === whole.replace(/^the /, "")) return 0;
+      if (s.ft.startsWith(whole)) return 1;
+      if (words.every(w => s.ft.includes(w))) return 2;
+      if (s.fa.startsWith(whole) || words.every(w => s.fa.includes(w))) return 3;
+      return 4;
+    },
+    artist(a) {
+      for (const w of words) if (!a.k.includes(w) && !fold(a.name).includes(w)) return -1;
+      return a.k.startsWith(whole) || fold(a.name).startsWith(whole) ? 0 : 1;
+    },
+  };
+}
+
+function compute() {
+  const m = matcher(state.q);
+  if (state.tab === "foryou") return recommend(Infinity).map(r => r.s);
+  if (songMode()) {
+    let out = [];
+    for (const s of SONGS) {
+      if (!passes(s)) continue;
+      const score = m ? m.song(s) : 0;
+      if (score >= 0) out.push([score, s]);
+    }
+    if (m) out.sort((a, b) => a[0] - b[0] || a[1].i - b[1].i);
+    const songs = out.map(x => x[1]);
+    // Saved songs are pinned in their own section at the top (and stay in their place in the list too).
+    const mine = m ? [] : songs.filter(isFav);
+    if (!mine.length) return songs;
+    return [{label: "Your saved songs", note: "Saved in this browser"}, ...mine.map(s => ({pin: s})),
+            {label: "All songs"}, ...songs];
+  }
+  let out = [];
+  for (const a of ARTISTS) {
+    const score = m ? m.artist(a) : 0;
+    if (score < 0) continue;
+    const n = anyFilter() ? a.songs.filter(passes).length : a.songs.length;
+    if (n) out.push([score, {a, n}]);
+  }
+  if (m) out.sort((x, y) => x[0] - y[0] || x[1].a.i - y[1].a.i);
+  return out.map(x => x[1]);
+}
+
+/* ---------------------------------------------------------------- list */
+
+const list = $("list");
+const ROW = 62;
+const OVERSCAN = 24;   // rows drawn beyond each edge of the screen
+let pool = new Map();   // position -> element
+let entering = false;   // rows drawn straight after a refresh fade in
+// Once a row has faded in, drop the class so it doesn't linger as its own layer.
+for (const id of ["list", "artistList"])
+  $(id).addEventListener("animationend", e => { if (e.target.classList?.contains("enter")) { e.target._enter = false; e.target.classList.remove("enter"); } });
+
+// Rows before "All songs": the pinned saved section, if there is one.
+const pinnedRows = () => view[0]?.label ? view.findIndex((x, i) => i > 0 && x.label) + 1 : 0;
+
+function refresh(keepScroll) {
+  const pinnedBefore = pinnedRows();
+  view = compute();
+  // Saving or unsaving resizes the pinned section; if the guest is scrolled past it, move the
+  // page by the same amount so the songs they're looking at don't jump.
+  const shift = (pinnedRows() - pinnedBefore) * ROW;
+  if (keepScroll && shift && list.getBoundingClientRect().top + pinnedBefore * ROW < (shut ? barH : topH)) scrollBy(0, shift);
+  const filtered = anyFilter();
+  const forYou = state.tab === "foryou";
+  const noun = forYou ? ["song picked for you", "songs picked for you"] : songMode() ? ["song", "songs"] : ["artist", "artists"];
+  const count = songMode() ? view.length - (pinnedRows() ? pinnedRows() : 0) : view.length;
+  let summary = plural(count, ...noun);
+  if (state.q.trim()) summary += ` for “${state.q.trim()}”`;
+  $("summary").textContent = summary;
+  $("favShare").hidden = state.tab !== "songs" || !FAVS.size || !!state.q.trim();
+  $("recsMore").hidden = !forYou || !view.length;
+  $("fClear").hidden = !filtered;
+  label($("fGenre"), "Genre", [...state.genres].map(g => GENRES[g]));
+  label($("fDecade"), "Decade", [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
+  label($("fVoice"), "Singer", [...VOICES.keys()].filter(v => state.voices.has(v)).map(v => VOICES[v]));
+  $("empty").hidden = view.length > 0;
+  const none = forYou && !FAVS.size;
+  $("emptyHead").textContent = none ? "Nothing to go on yet" : "Nothing matches that";
+  $("emptyWhy").textContent = none
+    ? "Tap ♡ on songs you like and we'll pick more like them for you here."
+    : state.q.trim()
+    ? "Try a different spelling, or just part of the title."
+    : "Nothing matches those filters together. Try fewer filters.";
+  $("emptyReset").hidden = none;
+  list.style.height = view.length * ROW + "px";
+  for (const el of pool.values()) { el.remove(); spare.push(el); }
+  pool.clear();
+  if (!keepScroll) window.scrollTo(0, 0);
+  entering = !keepScroll && MOTION;
+  draw();
+}
+
+function label(btn, name, picked) {
+  btn.classList.toggle("on", picked.length > 0);
+  btn.firstChild.textContent = picked.length === 0 ? name
+    : picked.length === 1 ? picked[0] : `${picked[0]} +${picked.length - 1}`;
+}
+
+// Rows are built once and reused: one scrolling out of view becomes the next one scrolling in,
+// so a scroll changes a few text nodes and a transform rather than building elements.
+const spare = [];
+function makeRow() {
+  const el = document.createElement("div");
+  el.className = "row";
+  el.setAttribute("role", "listitem");
+  el.innerHTML = `<span class="tx"><span class="t"></span><span class="a"></span></span>` +
+                 `<button type="button" class="quick"></button><span class="n"></span>`;
+  el._t = el.querySelector(".t"); el._a = el.querySelector(".a");
+  el._q = el.querySelector(".quick"); el._n = el.querySelector(".n");
+  return el;
+}
+function fillRow(el, pos) {
+  const item = view[pos];
+  el._pos = pos;
+  el.style.transform = `translateY(${pos * ROW}px)`;
+  // Only touch what differs: every class or attribute change makes the browser restyle the row.
+  if (el._enter) { el._enter = false; el.classList.remove("enter"); el.style.animationDelay = ""; }
+  const isLabel = !!item.label, songs = songMode() && !isLabel;
+  if (el._label !== isLabel) { el._label = isLabel; el.classList.toggle("label", isLabel); }
+  if (el._songs !== songs) { el._songs = songs; el._q.hidden = !songs; el._n.hidden = songs || isLabel; }
+  if (isLabel) {
+    el._t.textContent = item.label;
+    el._a.textContent = item.note || "";
+  } else if (songs) {
+    const song = item.pin || item;
+    el._t.textContent = song.t;
+    el._a.textContent = song.by;
+    heartSong.set(el._q, song);
+    if (el._pop) { el._pop = false; el._q.classList.remove("pop"); }
+    paintHeart(el._q);
+  } else {
+    el._t.textContent = item.a.name;
+    el._a.textContent = item.a.genre >= 0 ? GENRES[item.a.genre] : "";
+    el._n.textContent = fmt(item.n);
+  }
+  return el;
+}
+list.addEventListener("click", e => {
+  const row = e.target.closest(".row"), item = row && view[row._pos];
+  if (!item || item.label) return;
+  const song = item.pin || item;
+  if (e.target.closest(".quick")) heartTap(row._q, song, e);
+  else if (songMode()) songSheet(song);
+  else openArtist(item.a);
+});
+
+let raf = 0;
+function draw(listTop) {
+  raf = 0;
+  if ($("app").hidden) return;
+  const top = listTop ?? list.getBoundingClientRect().top;
+  // Rows are kept ready well past each edge of the screen, so a fast flick on a phone (which
+  // scrolls ahead of this code) shows songs rather than an empty gap while it catches up.
+  const first = Math.max(0, Math.floor(-top / ROW) - OVERSCAN);
+  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + OVERSCAN);
+  const free = [];
+  for (const [pos, el] of pool) if (pos < first || pos >= last) { free.push(el); pool.delete(pos); }
+  const frag = document.createDocumentFragment();
+  let k = 0;
+  for (let pos = first; pos < last; pos++) {
+    if (pool.has(pos)) continue;
+    let el = free.pop();
+    if (!el) { el = spare.pop() || makeRow(); frag.appendChild(el); }
+    fillRow(el, pos);
+    if (entering) { el._enter = true; el.classList.add("enter"); el.style.animationDelay = Math.min(k++, 14) * 24 + "ms"; }
+    pool.set(pos, el);
+  }
+  for (const el of free) { el.remove(); spare.push(el); }
+  entering = false;
+  if (frag.firstChild) list.appendChild(frag);
+}
+
+const top = $("top"), bar = $("bar"), more = $("more"), chev = $("chev");
+// Scrolling only flips a class when the direction changes; nothing moves frame by frame.
+let lastY = 0, travel = 0;
+let topH = 0, moreH = 0, barH = 0, shut = false;
+function measureHeader() {
+  const b = bar.offsetHeight;
+  if (b !== barH) { barH = b; top.style.setProperty("--bar-h", b + "px"); }
+  topH = top.offsetHeight; moreH = more.offsetHeight;
+  $("app").style.paddingTop = topH + 1 + "px";   // room for the fixed header and its hairline
+}
+const headerSizes = new ResizeObserver(measureHeader);
+headerSizes.observe(top); headerSizes.observe(bar);
+function setShut(s) {
+  if (window.LAB && LAB.noshut) s = false;   // lab.html only
+  if (s === shut) return;
+  shut = s;
+  top.classList.toggle("collapsed", s);
+  chev.setAttribute("aria-expanded", !s);
+}
+// Open near the top of the page (so there's never a gap above the first song); further down,
+// tuck away after ~24px of scrolling down and come back after ~24px of scrolling up.
+function followScroll(scrolled) {
+  const y = Math.max(0, scrolled), dy = y - lastY;
+  lastY = y;
+  if (y < moreH) { travel = 0; setShut(false); return; }
+  travel = dy > 0 === travel > 0 ? travel + dy : dy;
+  if (travel > 24) setShut(true);
+  else if (travel < -24) setShut(false);
+}
+chev.onclick = () => { travel = 0; setShut(false); };
+// One handler per frame while scrolling: read the scroll and list positions first, then move
+// the header and draw rows. Reading after writing would force the page to lay out mid-frame.
+let frame = 0;
+function onFrame() {
+  frame = 0;
+  if ($("app").hidden) return;
+  const y = scrollY, listTop = list.getBoundingClientRect().top;
+  followScroll(y);
+  draw(listTop);
+}
+addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onFrame); }, {passive: true});
+addEventListener("resize", () => { fitDock(); draw(); });
+
+/* ---------------------------------------------------------------- controls */
+
+const q = $("q");
+let typing = 0;
+q.addEventListener("input", () => {
+  clearTimeout(typing);
+  typing = setTimeout(() => { state.q = q.value; refresh(); }, 90);
+});
+q.addEventListener("keydown", e => {
+  if (e.key === "Enter") q.blur();
+  if (e.key === "Escape") { e.stopPropagation(); closeSearch(); }
+});
+const filters = $("filters"), searchBox = $("searchBox");
+function openSearch() {
+  filters.classList.add("searching");
+  searchBox.hidden = false;
+  q.focus();
+}
+// Closing clears the search too, so a hidden query never narrows the list.
+function closeSearch() {
+  filters.classList.remove("searching");
+  searchBox.hidden = true;
+  clearTimeout(typing);
+  if (q.value || state.q) { q.value = ""; state.q = ""; refresh(); }
+}
+$("find").onclick = openSearch;
+$("qx").onmousedown = e => e.preventDefault();   // keep the tap from blurring first
+$("qx").onclick = closeSearch;
+// Tapping away from an empty search folds it back into the button.
+q.addEventListener("blur", () => { if (!q.value.trim()) closeSearch(); });
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  state.tab = b.dataset.tab;
+  $("tabs").dataset.on = state.tab;
+  // The Saved tab is short enough to scan, so it has no filter or search row.
+  if (state.tab === "foryou") closeSearch();
+  filters.hidden = state.tab === "foryou";
+  document.querySelectorAll(".tabs button").forEach(x => {
+    x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
+  });
+  q.placeholder = state.tab === "songs" ? "Search songs or artists" : "Search artists";
+  refresh();
+});
+
+$("fClear").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); refresh(); };
+$("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); closeSearch(); refresh(); };
+
+/* ---------------------------------------------------------------- sheets */
+
+const scrim = $("scrim"), sheet = $("sheet");
+function openSheet(html, wire, modal) {
+  scrim.classList.toggle("modal", !!modal);
+  sheet.innerHTML = `<div class="grab"></div>` + html;
+  // Already open (e.g. song card -> listen list): swap the content in place, one history entry.
+  const swap = isOpen(scrim);
+  reveal(scrim);
+  document.body.style.overflow = "hidden";
+  if (!swap) history.pushState({v: "sheet"}, "");
+  wire?.(sheet);
+  sheet.focus({preventScroll: true});
+}
+function closeSheet(fromHistory) {
+  if (!isOpen(scrim)) return;
+  leave(scrim, 220);
+  document.body.style.overflow = "";
+  if (!fromHistory && history.state?.v === "sheet") history.back();
+}
+scrim.addEventListener("click", e => { if (e.target === scrim) closeSheet(); });
+$("sheetClose").onclick = () => closeSheet();
+addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(request)) closeRequest(); else if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
+
+function countBy(fn, size) {
+  const c = new Array(size).fill(0);
+  const m = matcher(songMode() ? state.q : "");
+  for (const s of SONGS) {
+    if (m && m.song(s) < 0) continue;
+    const k = fn(s);
+    if (k >= 0) c[k]++;
+  }
+  return c;
+}
+
+function pickerSheet(kind) {
+  const isGenre = kind === "genre", isVoice = kind === "voice";
+  const set = isGenre ? state.genres : isVoice ? state.voices : state.decades;
+  const names = isGenre ? GENRES : isVoice ? VOICES : DECADES.map(d => d.label);
+  // Counts honour the other filters, so each chip says what tapping it would give.
+  const counts = countBy(s => {
+    if (isGenre && (state.decades.size && !state.decades.has(s.dec) || state.voices.size && !state.voices.has(s.v))) return -1;
+    if (isVoice && (state.genres.size && !state.genres.has(s.g) || state.decades.size && !state.decades.has(s.dec))) return -1;
+    if (kind === "decade" && (state.genres.size && !state.genres.has(s.g) || state.voices.size && !state.voices.has(s.v))) return -1;
+    return isGenre ? s.g : isVoice ? s.v : s.dec;
+  }, names.length);
+  const order = isGenre ? [...names.keys()].sort((a, b) => counts[b] - counts[a]) : [...names.keys()];
+  const draft = new Set(set);
+  const chips = order.map(i => `<button type="button" class="chip${draft.has(i) ? " on" : ""}" data-i="${i}"` +
+    `${counts[i] ? "" : " disabled"} aria-pressed="${draft.has(i)}">${esc(names[i])}<i>${fmt(counts[i])}</i></button>`).join("");
+  openSheet(`
+    <h2 id="sheetTitle">${isGenre ? "Pick genres" : isVoice ? "Pick singer type" : "Pick decades"}</h2>
+    <p class="sub">Pick as many as you like.</p>
+    <div class="chips">${chips}</div>
+    <div class="acts"><button type="button" class="quiet" data-act="none">Clear</button>
+      <button type="button" class="go" data-act="show"></button></div>`, el => {
+    const go = el.querySelector('[data-act="show"]');
+    const preview = () => {
+      const saved = new Set(set);
+      set.clear(); draft.forEach(v => set.add(v));
+      const n = compute().length;
+      set.clear(); saved.forEach(v => set.add(v));
+      const noun = songMode() ? ["song", "songs"] : ["artist", "artists"];
+      go.textContent = n ? `Show ${plural(n, ...noun)}` : `No ${noun[1]} match`;
+      go.disabled = !n;
+    };
+    el.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+      const i = +c.dataset.i;
+      draft.has(i) ? draft.delete(i) : draft.add(i);
+      c.classList.toggle("on", draft.has(i)); c.setAttribute("aria-pressed", draft.has(i));
+      preview();
+    });
+    el.querySelector('[data-act="none"]').onclick = () => {
+      draft.clear();
+      el.querySelectorAll(".chip").forEach(c => { c.classList.remove("on"); c.setAttribute("aria-pressed", false); });
+      preview();
+    };
+    go.onclick = () => { set.clear(); draft.forEach(v => set.add(v)); closeSheet(); refresh(); };
+    preview();
+  });
+}
+$("fGenre").onclick = () => pickerSheet("genre");
+$("fDecade").onclick = () => pickerSheet("decade");
+$("fVoice").onclick = () => pickerSheet("voice");
+
+function songSheet(s, onArtistPage) {
+  const facts = [s.y, s.g >= 0 ? GENRES[s.g] : "", s.v >= 0 ? VOICES[s.v] : ""].filter(Boolean);
+  const all = onArtistPage ? 0 : s.artist.songs.length;
+  openSheet(`
+    <div class="head song-top"><p class="meta">${facts.map(f => esc(String(f))).join(" · ")}</p>
+      <button type="button" class="fav" data-act="fav"></button></div>
+    <div class="song-big"><h2 id="sheetTitle">${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div>
+    <button type="button" class="go request" data-act="request">Request song</button>
+    <button type="button" class="listen" data-act="listen"><svg viewBox="0 0 24 24" fill="currentColor"
+      aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>Listen to song</button>
+    <div class="acts">${all > 1 ? `<button type="button" class="artist-link" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs ›</button>` : ""}
+      <button type="button" class="icon-share" data-act="share" aria-label="Share this song"><svg viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
+        d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button></div>`,
+    el => {
+      el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
+      el.querySelector('[data-act="request"]').onclick = () => openRequest(s);
+      el.querySelector('[data-act="listen"]').onclick = () => listenSheet(s, onArtistPage);
+      const fav = el.querySelector('[data-act="fav"]');
+      const show = () => {
+        fav.setAttribute("aria-pressed", isFav(s));
+        fav.innerHTML = isFav(s) ? `<b aria-hidden="true">♥</b>Saved` : `<b aria-hidden="true">♡</b>Save`;
+      };
+      fav.onclick = () => {
+        toggleFav(s); show(); refresh(true); syncHearts();
+        if (isFav(s)) toast("Saved to your favourites");
+      };
+      show();
+      const a = el.querySelector('[data-act="artist"]');
+      // The sheet's history entry becomes the artist page's, so Back goes to the list.
+      if (a) a.onclick = () => {
+        clearTimeout(leaveTimers.get(scrim)); scrim.hidden = true; document.body.style.overflow = "";
+        openArtist(s.artist, true);
+      };
+    }, true);
+}
+
+/* ---------------------------------------------------------------- request */
+
+// Full-screen card the singer holds up to the host. It sits over the song card, with its own
+// history entry so Back returns to the card.
+const request = $("request");
+function openRequest(s) {
+  $("reqTitle").textContent = s.t;
+  $("reqBy").textContent = s.by;
+  reveal(request);
+  history.pushState({v: "request"}, "");
+  request.focus({preventScroll: true});
+}
+function closeRequest(fromHistory) {
+  if (!isOpen(request)) return;
+  leave(request, 200);
+  if (!fromHistory && history.state?.v === "request") history.back();
+}
+$("reqDone").onclick = () => closeRequest();
+
+/* ---------------------------------------------------------------- listen */
+
+// Searches rather than exact tracks: there's no catalogue to look songs up in, and every app
+// below takes a search link. On a phone with the app installed, these open the app itself.
+const LISTEN = [
+  ["Spotify", q => `https://open.spotify.com/search/${encodeURIComponent(q)}`],
+  ["Apple Music", q => `https://music.apple.com/gb/search?term=${encodeURIComponent(q)}`],
+  ["YouTube", q => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`],
+  ["YouTube Music", q => `https://music.youtube.com/search?q=${encodeURIComponent(q)}`],
+  ["Amazon Music", q => `https://music.amazon.co.uk/search/${encodeURIComponent(q)}`],
+  ["Deezer", q => `https://www.deezer.com/search/${encodeURIComponent(q)}`],
+  ["SoundCloud", q => `https://soundcloud.com/search?q=${encodeURIComponent(q)}`],
+];
+const LISTEN_FIRST = 3;   // Spotify, Apple Music and YouTube show; the rest sit behind "Show more"
+// "feat." credits and bracketed notes (Live, Remix…) make searches worse, so leave them out.
+const plainQuery = s => `${s.t} ${s.by}`.replace(/\s*[([].*?[)\]]/g, "").replace(/\s+(feat\.?|ft\.?|featuring)\s.*$/i, "").trim();
+
+function listenSheet(s, onArtistPage) {
+  const q = plainQuery(s);
+  const row = (name, url, extra) => `<li${extra ? ` class="extra" hidden` : ""}><a href="${esc(url)}" target="_blank" ` +
+    `rel="noopener"><b>${esc(name)}</b></a></li>`;
+  openSheet(`<div class="swap">
+    <button type="button" class="back-link" data-act="back">‹ Back</button>
+    <div class="head"><div><h2 id="sheetTitle">Listen to ${esc(s.t)}</h2><p class="sub">${esc(s.by)}</p></div></div>
+    <ul class="apps">
+      ${LISTEN.map(([name, url], i) => row(name, url(q), i >= LISTEN_FIRST)).join("")}
+      <li class="toggle"><button type="button" class="more-apps">Show more apps<svg viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></li>
+    </ul></div>`, el => {
+    const more = el.querySelector(".more-apps");
+    more.onclick = () => {
+      el.querySelectorAll(".apps li.extra").forEach(li => (li.hidden = false));
+      more.parentElement.remove();
+    };
+    el.querySelector('[data-act="back"]').onclick = () => songSheet(s, onArtistPage);
+  }, true);
+}
+
+/* ---------------------------------------------------------------- sharing */
+
+const toastEl = $("toast");
+let toastTimer = 0;
+function toast(text) {
+  toastEl.textContent = text;
+  toastEl.style.bottom = dockH + 16 + "px";
+  // Restart the pop-in even if a toast is already showing.
+  toastEl.hidden = true; void toastEl.offsetWidth; reveal(toastEl);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => leave(toastEl, 200), 2200);
+}
+
+// The phone's own share menu where there is one; otherwise copy the link.
+async function share(d) {
+  if (navigator.share) {
+    try { await navigator.share(d); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try {
+    await navigator.clipboard.writeText(d.text ? `${d.text}\n${d.url}` : d.url);
+    toast("Link copied");
+  } catch {
+    window.prompt("Copy this link", d.url);
+  }
+}
+
+const shareBook = () => share({
+  title: "Mad Dog Karaoke Songbook",
+  text: "Find a song to sing at Mad Dog Karaoke",
+  url: HOME,
+});
+const shareSong = s => share({
+  title: `${s.t} – ${s.by}`,
+  text: `Sing “${s.t}” by ${s.by} at Mad Dog Karaoke`,
+  url: `${HOME}?${new URLSearchParams({song: s.t, by: s.by})}`,
+});
+const shareDates = () => share({
+  title: "Mad Dog Karaoke nights",
+  text: `Mad Dog Karaoke nights${VENUE ? ` at ${VENUE}` : ""}:\n` + upcoming().map(k => {
+    const w = whenWord(k);
+    return shortDate(k) + (w ? ` (${w.toLowerCase()})` : "");
+  }).join("\n"),
+  url: HOME + "?dates",
+});
+$("shareBook").onclick = shareBook;
+
+// The list travels in the link itself, so it also works as a backup: open it on any phone to save them again.
+function shareFavs() {
+  const songs = SONGS.filter(isFav);
+  const p = new URLSearchParams();
+  for (const s of songs) { p.append("t", s.t); p.append("b", s.by); }
+  share({
+    title: "My Mad Dog Karaoke favourites",
+    text: "My Mad Dog Karaoke favourites:\n" + songs.map(s => `${s.t} – ${s.by}`).join("\n"),
+    url: `${HOME}?${p}`,
+  });
+}
+$("favShare").onclick = shareFavs;
+
+/* ---------------------------------------------------------------- heart buttons */
+
+// One-tap save on any song row. Rows on the Saved tab come and go with it, so that tab is
+// rebuilt; elsewhere the button just updates in place.
+const heartSong = new WeakMap();
+const heartHTML = s => `<button type="button" class="quick" aria-pressed="${isFav(s)}" ` +
+  `aria-label="${isFav(s) ? "Remove" : "Save"} ${esc(s.t)}">${isFav(s) ? "♥" : "♡"}</button>`;
+function paintHeart(b) {
+  const s = heartSong.get(b), on = isFav(s);
+  if (b._on !== on) { b._on = on; b.setAttribute("aria-pressed", on); b.textContent = on ? "♥" : "♡"; }
+  b.setAttribute("aria-label", `${on ? "Remove" : "Save"} ${s.t}`);
+}
+function heartTap(b, s, e) {
+  e.stopPropagation();
+  toggleFav(s);
+  paintHeart(b);
+  if (isFav(s)) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); b.closest(".row") && (b.closest(".row")._pop = true); toast("Saved to your favourites"); }
+  // The pinned saved section (Songs, not searching) and For you both depend on what's saved.
+  if (state.tab === "foryou" || (state.tab === "songs" && !state.q.trim())) refresh(true);
+}
+function wireHeart(row, s) {
+  const b = row.querySelector(".quick");
+  heartSong.set(b, s);
+  b.onclick = e => heartTap(b, s, e);
+}
+// After saving from a song card, bring the artist page's hearts up to date.
+const syncHearts = () => document.querySelectorAll("#artistList .quick").forEach(paintHeart);
+
+/* ---------------------------------------------------------------- recommendations */
+
+// There are no play counts, so this leans on what each song is: songs that share the
+// artist, genre, decade and singer type of the guest's favourites score highest, and
+// acts with a big catalogue (a fair sign of a karaoke staple) get a nudge. A little
+// seeded randomness keeps the list fresh day to day, and "Refresh" reshuffles.
+let recSeed = Math.floor(Date.now() / 864e5);
+function jitter(i) {
+  let x = Math.imul(i + 1, 2654435761) ^ recSeed;
+  x = Math.imul(x ^ (x >>> 15), 2246822507);
+  x = Math.imul(x ^ (x >>> 13), 3266489909);
+  return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
+}
+
+function recommend(n) {
+  const favs = SONGS.filter(isFav);
+  if (!favs.length) return [];
+  const tally = key => {
+    const m = new Map();
+    for (const f of favs) { const k = key(f); if (k !== -1) m.set(k, (m.get(k) || 0) + 1); }
+    return m;
+  };
+  const G = tally(f => f.g), D = tally(f => f.dec), V = tally(f => f.v), A = tally(f => f.artist);
+  const share = (m, k) => (m.get(k) || 0) / favs.length;
+  const scored = [];
+  for (const s of SONGS) {
+    if (isFav(s) || !passes(s)) continue;
+    const sameArtist = A.has(s.artist);
+    // Only songs that share something real with the favourites.
+    if (!sameArtist && !G.has(s.g)) continue;
+    const score = 3 * share(G, s.g) + 2 * share(D, s.dec) + share(V, s.v) +
+                  0.25 * Math.min(6, Math.log2(s.artist.songs.length)) + 1.2 * jitter(s.i);
+    scored.push([score, s]);
+  }
+  scored.sort((a, b) => b[0] - a[0]);
+  // Alternate more from acts they've saved (two each at most) with acts that are new to
+  // them (one each), so it's half familiar, half discovery and never one discography.
+  const known = [], fresh = [], per = new Map(), used = new Set();
+  for (const [, s] of scored) {
+    const mine = A.has(s.artist), c = per.get(s.artist) || 0;
+    if (c >= (mine ? 2 : 1)) continue;
+    const q = mine ? known : fresh;
+    if (q.length >= n) continue;
+    per.set(s.artist, c + 1);
+    q.push(s);
+    if (known.length >= n && fresh.length >= n) break;
+  }
+  const out = [];
+  for (let i = 0; out.length < n && (i < known.length || i < fresh.length); i++) {
+    if (i < known.length) out.push(known[i]);
+    if (i < fresh.length && out.length < n) out.push(fresh[i]);
+  }
+  // The full list (For you) carries on with everything else that matched, best first.
+  if (n === Infinity) {
+    for (const s of out) used.add(s);
+    for (const [, s] of scored) if (!used.has(s)) out.push(s);
+  }
+  return out.map(s => ({s, why: reason(s, favs)}));
+}
+
+function reason(s, favs) {
+  if (favs.some(f => f.artist === s.artist)) return `More from ${s.artist.name}`;
+  const close = favs.find(f => f.g === s.g && f.dec === s.dec && s.dec >= 0) || favs.find(f => f.g === s.g);
+  return close ? `Like ${close.t}` : "";
+}
+
+$("recsMore").onclick = () => { recSeed++; refresh(); };
+
+function sharedFavsSheet(songs) {
+  const fresh = () => songs.filter(s => !isFav(s)).length;
+  openSheet(`
+    <h2 id="sheetTitle">Favourites shared with you</h2>
+    <p class="sub">${plural(songs.length, "song", "songs")}. Save them to keep them on this phone.</p>
+    <ol class="shared">${songs.map(s => `<li>${esc(s.t)}<span>${esc(s.by)}</span></li>`).join("")}</ol>
+    <div class="acts stick"><button type="button" class="quiet" data-act="close">Close</button>
+      <button type="button" class="go" data-act="save"></button></div>`, el => {
+    const go = el.querySelector('[data-act="save"]');
+    const show = () => {
+      const n = fresh();
+      go.textContent = n ? `Save ${n === songs.length && n > 1 ? "all " : ""}${plural(n, "song", "songs")}` : "All in your favourites";
+      go.disabled = !n;
+    };
+    el.querySelector('[data-act="close"]').onclick = () => closeSheet();
+    go.onclick = () => {
+      for (const s of songs) FAVS.add(favKey(s));
+      saveFavs(); show(); refresh(true);
+      toast("Saved to your favourites");
+    };
+    show();
+  });
+}
+
+/* ---------------------------------------------------------------- karaoke nights */
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
+                "October", "November", "December"];
+const pad2 = n => String(n).padStart(2, "0");
+const keyOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const dateOf = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+const shortDate = k => { const d = dateOf(k); return `${DAYS[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`; };
+const longDate = k => { const d = dateOf(k); return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+// Tonight's night stays listed until midnight.
+const upcoming = () => { const today = keyOf(new Date()); return NIGHTS.filter(k => k >= today); };
+function whenWord(k) {
+  const t = new Date();
+  if (k === keyOf(t)) return "Tonight";
+  t.setDate(t.getDate() + 1);
+  return k === keyOf(t) ? "Tomorrow" : "";
+}
+
+const dock = $("dock"), dockRow = $("dockRow");
+let dockH = 0;
+function buildDock() {
+  const ks = upcoming();
+  dock.hidden = !ks.length;
+  dockRow.innerHTML = ks.length ? `<span class="lead">Karaoke nights</span>` + ks.map(k => {
+    const d = dateOf(k), w = whenWord(k);
+    return `<span class="night${w === "Tonight" ? " now" : ""}" role="listitem" ` +
+      `aria-label="${longDate(k)}${w ? `, ${w.toLowerCase()}` : ""}${VENUE ? `, ${esc(VENUE)}` : ""}">` +
+      `<span class="when"><span>${w || DAYS[d.getDay()].slice(0, 3)}</span>${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}</span>` +
+      `${VENUE ? `<span class="venue">${esc(VENUE)}</span>` : ""}</span>`;
+  }).join("") : "";
+  dockRow.scrollLeft = 0;
+  fitDock();
+}
+// Keep the list's last rows clear of the dock.
+function fitDock() {
+  dockH = dock.hidden || $("app").hidden ? 0 : dock.offsetHeight;
+  $("app").style.paddingBottom = dockH ? dockH + "px" : "";
+}
+// A page left open overnight drops last night's date.
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("app").hidden) buildDock(); });
+
+function datesSheet() {
+  const ks = upcoming();
+  const months = new Map();
+  for (const k of ks) {
+    const d = dateOf(k), m = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    if (!months.has(m)) months.set(m, []);
+    months.get(m).push(k);
+  }
+  const cal = [...months].map(([m, days]) => `<section><h3>${m}</h3><ol>` + days.map(k => {
+    const w = whenWord(k);
+    return `<li>${longDate(k)}${w ? `<span>${w}</span>` : ""}</li>`;
+  }).join("") + `</ol></section>`).join("");
+  openSheet(`
+    <h2 id="sheetTitle">Karaoke nights</h2>
+    <p class="sub">${plural(ks.length, "night", "nights")} coming up${VENUE ? ` at ${esc(VENUE)}` : ""}. Come and sing.</p>
+    <div class="cal">${cal}</div>
+    <div class="acts stick"><button type="button" class="quiet" data-act="close">Close</button>
+      <button type="button" class="go" data-act="share">Share the dates</button></div>`, el => {
+    el.querySelector('[data-act="close"]').onclick = () => closeSheet();
+    el.querySelector('[data-act="share"]').onclick = shareDates;
+  });
+}
+
+/* ---------------------------------------------------------------- artist page */
+
+const page = $("artistPage");
+let pageScroll = 0;
+function openArtist(a, replace) {
+  pageScroll = scrollY;
+  const songs = a.songs.slice().sort((x, y) => x.i - y.i);
+  const g = a.genre >= 0 ? ` · ${GENRES[a.genre]}` : "";
+  $("artistName").textContent = a.name;
+  $("artistSub").textContent = plural(songs.length, "song", "songs") + g;
+  const box = $("artistList");
+  box.innerHTML = "";
+  for (const s of songs) {
+    const el = document.createElement("div");
+    el.className = "row"; el.setAttribute("role", "listitem");
+    // Second line only when it says something the header doesn't.
+    const sub = s.by !== a.name ? s.by : (s.g >= 0 && s.g !== a.genre ? GENRES[s.g] : "");
+    el.innerHTML = `<span class="tx"><span class="t">${esc(s.t)}</span>${sub ? `<span class="a">${esc(sub)}</span>` : ""}</span>` +
+      heartHTML(s);
+    el.onclick = () => songSheet(s, true);
+    wireHeart(el, s);
+    if (MOTION && box.children.length < 14) {
+      el.classList.add("enter"); el.style.animationDelay = 120 + box.children.length * 24 + "ms";
+    }
+    box.appendChild(el);
+  }
+  reveal(page);
+  page.scrollTop = 0;
+  document.body.style.overflow = "hidden";
+  replace ? history.replaceState({v: "artist"}, "") : history.pushState({v: "artist"}, "");
+  page.focus({preventScroll: true});
+}
+function closeArtist() {
+  leave(page, 240);
+  document.body.style.overflow = "";
+  window.scrollTo(0, pageScroll);
+  draw();
+}
+$("artistBack").onclick = () => history.back();
+
+addEventListener("popstate", e => {
+  if (isOpen(request)) { closeRequest(true); return; }
+  if (isOpen(scrim)) { closeSheet(true); return; }
+  if (isOpen(page) && e.state?.v !== "artist") closeArtist();
+});
+
+/* ---------------------------------------------------------------- go */
+
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+openBook();
+})();
+</script>
+<script src="lab.js"></script>
+</body>
+</html>
