@@ -124,26 +124,26 @@ dates** (on a shared dates link) use the phone's own share menu (WhatsApp, Messa
 where there isn't one. Shared links open straight onto the song
 (`?song=…&by=…`) or the list of dates (`?dates`).
 
-## Favourites
+## Favourites and For you
 
-The Saved tab notes under the count that the list is saved in this browser.
-Tap the ♡ on any song row (or **Save** on the song itself) and it shows up under
-the **Saved** tab. Rows show the heart rather than the year; the year is on the
-song itself. Favourites are kept in the browser on that phone (`localStorage`),
-so there are no accounts and nothing is sent anywhere. They stay until the
-guest clears their browser data. Safari on iPhone can clear a site's stored data
-after about 7 days of use without a visit, so **Share my list** on the Saved tab
+Tap the ♡ on any song (or **Save** on the song itself). Saved songs are pinned in
+a **Your saved songs** section at the top of the Songs list, and stay in their
+A–Z place too. They're kept in the browser on that phone (`localStorage`), so
+there are no accounts and nothing is sent anywhere. They stay until the guest
+clears their browser data. Safari on iPhone can clear a site's stored data after
+about 7 days of use without a visit, so **Share my saved songs** (on the Songs tab)
 sends a link with the songs in it: opening it on any phone offers to save them
-again. Saved songs are matched by title and artist, so rebuilding the song
-list doesn't lose them.
+again. Saved songs are matched by title and artist, so rebuilding the song list
+doesn't lose them.
 
-Under the saved songs, **You may also know** suggests a dozen more. There are
-no play counts, so it matches on what each song is: the same acts, genres,
-decades and singer types as their favourites, with a nudge for acts that have a
-big catalogue. It alternates more from acts they've saved with acts new to them
-(at most two songs from any act already saved, one from a new act), changes a
-little each day, and **Refresh** reshuffles. It all runs on the
-phone; nothing is sent anywhere.
+The **For you** tab is the full list of songs recommended from what's saved,
+best first. There are no play counts, so it matches on what each song is: the
+same acts, genres, decades and singer types as the saved songs, with a nudge for
+acts that have a big catalogue. The top of the list alternates more from acts
+they've saved with acts new to them (at most two songs from any saved act, one
+from a new act); after that it's everything else that matched, best first. It
+changes a little each day, and **Refresh** reshuffles. It all runs on the phone;
+nothing is sent anywhere.
 
 ## Listen to a song
 

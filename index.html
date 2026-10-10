@@ -123,7 +123,7 @@
               background:var(--lift);border:1px solid var(--edge);box-shadow:0 2px 10px rgba(0,0,0,.35);
               transition:transform .38s var(--spring)}
   .tabs[data-on="artists"] .pill{transform:translateX(100%)}
-  .tabs[data-on="saved"] .pill{transform:translateX(200%)}
+  .tabs[data-on="foryou"] .pill{transform:translateX(200%)}
   .tabs button{position:relative;flex:1;font-weight:600;font-size:14px;padding:8px 6px;min-height:38px;border:0;
                background:none;color:var(--dim);white-space:nowrap}
   .tabs button.on{color:var(--ink)}
@@ -334,17 +334,11 @@
   .plain .t,.plain .a{white-space:normal}
   .plain{margin:0 var(--pad);border-top:1px solid var(--rail)}
 
-  /* recommendations, under the saved songs */
-  .recs{margin:26px 0 8px;animation:rise .45s .1s var(--spring) both}
-  .recs-head{display:flex;align-items:baseline;gap:12px;padding:0 var(--pad)}
-  .recs h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.015em}
-  .recs h2 em{font-style:normal;background:linear-gradient(90deg,var(--part-a),var(--part-b));
-              -webkit-background-clip:text;background-clip:text;color:transparent}
-  .recs-head .quiet{margin-left:auto;font-size:13px;min-height:0;padding:0}
-  .recs > .sub{margin:2px var(--pad) 10px;color:var(--dim);font-size:13.5px}
-  .recs .row{grid-template-columns:1fr auto}
-  .recs .why{display:block;font-size:12px;font-weight:600;color:var(--part-b);margin-top:3px;
-             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* section labels in the song list ("Your saved songs", "All songs") */
+  #list .row.label{cursor:default;align-items:end;padding-bottom:9px;grid-template-columns:1fr}
+  #list .row.label .t{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--part-a)}
+  #list .row.label .a{font-size:12px;color:var(--faint)}
+  #list .row.label::after{display:none}
   .quick{width:44px;height:44px;margin-right:-8px;border:0;background:none;padding:0;
          color:var(--dim);font-size:26px;line-height:1;display:grid;place-items:center}
   .quick[aria-pressed="true"]{color:var(--part-a);text-shadow:0 0 14px rgba(237,31,97,.5)}
@@ -380,7 +374,7 @@
         <span class="pill" aria-hidden="true"></span>
         <button type="button" class="on" data-tab="songs" aria-pressed="true">Songs</button>
         <button type="button" data-tab="artists" aria-pressed="false">Artists</button>
-        <button type="button" data-tab="saved" aria-pressed="false"><span class="heart" aria-hidden="true">♥</span>Saved</button>
+        <button type="button" data-tab="foryou" aria-pressed="false"><span class="heart" aria-hidden="true">✦</span>For you</button>
       </nav></div>
       <div class="filters" id="filters">
         <button type="button" id="fGenre" aria-haspopup="dialog">Genre<span class="caret">▾</span></button>
@@ -399,8 +393,9 @@
         </div>
       </div>
       <div class="eyebrow"><span class="count"><span id="summary" aria-live="polite"></span>
-        <span class="note" id="savedNote" hidden>Saved in this browser</span></span>
-        <button class="quiet" type="button" id="favShare" hidden>Share my list</button></div>
+        </span>
+        <button class="quiet" type="button" id="favShare" hidden>Share my saved songs</button>
+        <button class="quiet" type="button" id="recsMore" hidden>Refresh</button></div>
       <button class="chev" id="chev" type="button" aria-label="Show tabs and filters" aria-controls="more"
               aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -409,12 +404,6 @@
   </header>
   <div class="wrap">
     <div class="list" id="list" role="list"></div>
-    <section class="recs" id="recs" hidden aria-labelledby="recsTitle">
-      <div class="recs-head"><h2 id="recsTitle">You may <em>also know</em></h2>
-        <button class="quiet" type="button" id="recsMore">Refresh</button></div>
-      <p class="sub">Picked from the songs you've saved.</p>
-      <div class="plain" id="recsList" role="list"></div>
-    </section>
     <div class="empty" id="empty" hidden>
       <b id="emptyHead">Nothing matches that</b>
       <span id="emptyWhy">Try a different spelling, or fewer filters.</span>
@@ -618,12 +607,12 @@ function findSong(t, by) {
          SONGS.find(s => s.ft === fold(t) && (!by || s.fa === fold(by)));
 }
 
-// The Saved tab has no filter row, so filters picked on Songs or Artists don't apply there
+// The For you tab has no filter row, so filters picked on Songs or Artists don't apply there
 // (they're kept for when the guest goes back).
-function anyFilter() { return state.tab !== "saved" && (state.genres.size || state.decades.size || state.voices.size); }
+function anyFilter() { return state.tab !== "foryou" && (state.genres.size || state.decades.size || state.voices.size); }
 
 function passes(s) {
-  if (state.tab === "saved") return true;
+  if (state.tab === "foryou") return true;
   if (state.genres.size && !state.genres.has(s.g)) return false;
   if (state.decades.size && !state.decades.has(s.dec)) return false;
   if (state.voices.size && !state.voices.has(s.v)) return false;
@@ -655,17 +644,21 @@ function matcher(q) {
 
 function compute() {
   const m = matcher(state.q);
+  if (state.tab === "foryou") return recommend(Infinity).map(r => r.s);
   if (songMode()) {
-    const saved = state.tab === "saved";
     let out = [];
     for (const s of SONGS) {
-      if (saved && !isFav(s)) continue;
       if (!passes(s)) continue;
       const score = m ? m.song(s) : 0;
       if (score >= 0) out.push([score, s]);
     }
     if (m) out.sort((a, b) => a[0] - b[0] || a[1].i - b[1].i);
-    return out.map(x => x[1]);
+    const songs = out.map(x => x[1]);
+    // Saved songs are pinned in their own section at the top (and stay in their A–Z place too).
+    const mine = m ? [] : songs.filter(isFav);
+    if (!mine.length) return songs;
+    return [{label: "Your saved songs", note: "Saved in this browser"}, ...mine.map(s => ({pin: s})),
+            {label: "All songs"}, ...songs];
   }
   let out = [];
   for (const a of ARTISTS) {
@@ -686,28 +679,37 @@ const OVERSCAN = 24;   // rows drawn beyond each edge of the screen
 let pool = new Map();   // position -> element
 let entering = false;   // rows drawn straight after a refresh fade in
 // Once a row has faded in, drop the class so it doesn't linger as its own layer.
-for (const id of ["list", "recsList", "artistList"])
+for (const id of ["list", "artistList"])
   $(id).addEventListener("animationend", e => { if (e.target.classList?.contains("enter")) { e.target._enter = false; e.target.classList.remove("enter"); } });
 
+// Rows before "All songs": the pinned saved section, if there is one.
+const pinnedRows = () => view[0]?.label ? view.findIndex((x, i) => i > 0 && x.label) + 1 : 0;
+
 function refresh(keepScroll) {
+  const pinnedBefore = pinnedRows();
   view = compute();
+  // Saving or unsaving resizes the pinned section; if the guest is scrolled past it, move the
+  // page by the same amount so the songs they're looking at don't jump.
+  const shift = (pinnedRows() - pinnedBefore) * ROW;
+  if (keepScroll && shift && list.getBoundingClientRect().top + pinnedBefore * ROW < (shut ? barH : topH)) scrollBy(0, shift);
   const filtered = anyFilter();
-  const saved = state.tab === "saved";
-  const noun = saved ? ["saved song", "saved songs"] : songMode() ? ["song", "songs"] : ["artist", "artists"];
-  let summary = plural(view.length, ...noun);
+  const forYou = state.tab === "foryou";
+  const noun = forYou ? ["song picked for you", "songs picked for you"] : songMode() ? ["song", "songs"] : ["artist", "artists"];
+  const count = songMode() ? view.length - (pinnedRows() ? pinnedRows() : 0) : view.length;
+  let summary = plural(count, ...noun);
   if (state.q.trim()) summary += ` for “${state.q.trim()}”`;
   $("summary").textContent = summary;
-  $("favShare").hidden = !saved || !FAVS.size;
-  $("savedNote").hidden = !saved || !FAVS.size;
+  $("favShare").hidden = state.tab !== "songs" || !FAVS.size || !!state.q.trim();
+  $("recsMore").hidden = !forYou || !view.length;
   $("fClear").hidden = !filtered;
   label($("fGenre"), "Genre", [...state.genres].map(g => GENRES[g]));
   label($("fDecade"), "Decade", [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
   label($("fVoice"), "Singer", [...VOICES.keys()].filter(v => state.voices.has(v)).map(v => VOICES[v]));
   $("empty").hidden = view.length > 0;
-  const none = saved && !FAVS.size;
-  $("emptyHead").textContent = none ? "No favourites yet" : "Nothing matches that";
+  const none = forYou && !FAVS.size;
+  $("emptyHead").textContent = none ? "Nothing to go on yet" : "Nothing matches that";
   $("emptyWhy").textContent = none
-    ? "Tap a song, then Save. Your favourites stay on this phone for next time."
+    ? "Tap ♡ on songs you like and we'll pick more like them for you here."
     : state.q.trim()
     ? "Try a different spelling, or just part of the title."
     : "Nothing matches those filters together. Try fewer filters.";
@@ -719,7 +721,6 @@ function refresh(keepScroll) {
   if (!keepScroll) window.scrollTo(0, 0);
   entering = !keepScroll && MOTION;
   draw();
-  renderRecs(!keepScroll);
 }
 
 function label(btn, name, picked) {
@@ -747,12 +748,17 @@ function fillRow(el, pos) {
   el.style.transform = `translateY(${pos * ROW}px)`;
   // Only touch what differs: every class or attribute change makes the browser restyle the row.
   if (el._enter) { el._enter = false; el.classList.remove("enter"); el.style.animationDelay = ""; }
-  const songs = songMode();
-  if (el._songs !== songs) { el._songs = songs; el._q.hidden = !songs; el._n.hidden = songs; }
-  if (songs) {
-    el._t.textContent = item.t;
-    el._a.textContent = item.by;
-    heartSong.set(el._q, item);
+  const isLabel = !!item.label, songs = songMode() && !isLabel;
+  if (el._label !== isLabel) { el._label = isLabel; el.classList.toggle("label", isLabel); }
+  if (el._songs !== songs) { el._songs = songs; el._q.hidden = !songs; el._n.hidden = songs || isLabel; }
+  if (isLabel) {
+    el._t.textContent = item.label;
+    el._a.textContent = item.note || "";
+  } else if (songs) {
+    const song = item.pin || item;
+    el._t.textContent = song.t;
+    el._a.textContent = song.by;
+    heartSong.set(el._q, song);
     if (el._pop) { el._pop = false; el._q.classList.remove("pop"); }
     paintHeart(el._q);
   } else {
@@ -764,9 +770,10 @@ function fillRow(el, pos) {
 }
 list.addEventListener("click", e => {
   const row = e.target.closest(".row"), item = row && view[row._pos];
-  if (!item) return;
-  if (e.target.closest(".quick")) heartTap(row._q, item, e);
-  else if (songMode()) songSheet(item);
+  if (!item || item.label) return;
+  const song = item.pin || item;
+  if (e.target.closest(".quick")) heartTap(row._q, song, e);
+  else if (songMode()) songSheet(song);
   else openArtist(item.a);
 });
 
@@ -811,7 +818,6 @@ function setShut(s) {
   shut = s;
   top.classList.toggle("collapsed", s);
   chev.setAttribute("aria-expanded", !s);
-  placeJump();
 }
 // Open near the top of the page (so there's never a gap above the first song); further down,
 // tuck away after ~24px of scrolling down and come back after ~24px of scrolling up.
@@ -845,11 +851,12 @@ function buildJump() {
   const searching = state.q.trim().length > 0;
   if (!searching) {
     view.forEach((item, pos) => {
+      if (item.label || item.pin) return;
       const l = songMode() ? item.letter : item.a.letter;
       if (!firstAt.has(l)) firstAt.set(l, pos);
     });
   }
-  const show = !searching && view.length > 60;
+  const show = !searching && view.length > 60 && state.tab !== "foryou";
   jump.hidden = !show;
   list.classList.toggle("has-rail", show);
   if (!show) return;
@@ -857,14 +864,10 @@ function buildJump() {
     .map(l => `<span class="${firstAt.has(l) ? "" : "off"}" data-l="${l}">${l}</span>`).join("");
   placeJump();
 }
-// Called when the header opens or shuts (not every frame). The rail is resized once, then
-// slid from where it was to where it now is, on the compositor.
+// The rail sits just below the full header and stays put when the header opens or shuts:
+// nothing about it changes while scrolling.
 function placeJump() {
-  const to = (shut ? topH - moreH : topH) + 6, from = parseFloat(jump.style.top);
-  jump.style.top = to + "px";
-  if (MOTION && from && from !== to && !jump.hidden)
-    jump.animate([{transform: `translateY(${from - to}px)`}, {transform: "none"}],
-                 {duration: 350, easing: "cubic-bezier(.16,1,.3,1)"});
+  jump.style.top = topH + 6 + "px";
   jump.style.bottom = dockH ? dockH + 10 + "px" : "calc(10px + env(safe-area-inset-bottom))";
 }
 function jumpTo(l) {
@@ -939,8 +942,8 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   state.tab = b.dataset.tab;
   $("tabs").dataset.on = state.tab;
   // The Saved tab is short enough to scan, so it has no filter or search row.
-  if (state.tab === "saved") closeSearch();
-  filters.hidden = state.tab === "saved";
+  if (state.tab === "foryou") closeSearch();
+  filters.hidden = state.tab === "foryou";
   document.querySelectorAll(".tabs button").forEach(x => {
     x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
   });
@@ -978,9 +981,7 @@ addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(request)
 function countBy(fn, size) {
   const c = new Array(size).fill(0);
   const m = matcher(songMode() ? state.q : "");
-  const saved = state.tab === "saved";
   for (const s of SONGS) {
-    if (saved && !isFav(s)) continue;
     if (m && m.song(s) < 0) continue;
     const k = fn(s);
     if (k >= 0) c[k]++;
@@ -1210,7 +1211,8 @@ function heartTap(b, s, e) {
   toggleFav(s);
   paintHeart(b);
   if (isFav(s)) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); b.closest(".row") && (b.closest(".row")._pop = true); toast("Saved to your favourites"); }
-  if (state.tab === "saved") refresh(true);
+  // The pinned saved section (Songs, not searching) and For you both depend on what's saved.
+  if (state.tab === "foryou" || (state.tab === "songs" && !state.q.trim())) refresh(true);
 }
 function wireHeart(row, s) {
   const b = row.querySelector(".quick");
@@ -1257,7 +1259,7 @@ function recommend(n) {
   scored.sort((a, b) => b[0] - a[0]);
   // Alternate more from acts they've saved (two each at most) with acts that are new to
   // them (one each), so it's half familiar, half discovery and never one discography.
-  const known = [], fresh = [], per = new Map();
+  const known = [], fresh = [], per = new Map(), used = new Set();
   for (const [, s] of scored) {
     const mine = A.has(s.artist), c = per.get(s.artist) || 0;
     if (c >= (mine ? 2 : 1)) continue;
@@ -1272,6 +1274,11 @@ function recommend(n) {
     if (i < known.length) out.push(known[i]);
     if (i < fresh.length && out.length < n) out.push(fresh[i]);
   }
+  // The full list (For you) carries on with everything else that matched, best first.
+  if (n === Infinity) {
+    for (const s of out) used.add(s);
+    for (const [, s] of scored) if (!used.has(s)) out.push(s);
+  }
   return out.map(s => ({s, why: reason(s, favs)}));
 }
 
@@ -1281,25 +1288,7 @@ function reason(s, favs) {
   return close ? `Like ${close.t}` : "";
 }
 
-function renderRecs(animate) {
-  const box = $("recsList");
-  const show = state.tab === "saved" && FAVS.size > 0 && !state.q.trim();
-  const recs = show ? recommend(12) : [];
-  $("recs").hidden = !recs.length;
-  box.innerHTML = "";
-  recs.forEach(({s, why}, k) => {
-    const el = document.createElement("div");
-    el.className = "row"; el.setAttribute("role", "listitem");
-    el.innerHTML = `<span class="tx"><span class="t">${esc(s.t)}</span><span class="a">${esc(s.by)}${s.y ? ` · ${s.y}` : ""}</span>` +
-      `${why ? `<span class="why">${esc(why)}</span>` : ""}</span>` +
-      heartHTML(s);
-    el.onclick = () => songSheet(s);
-    wireHeart(el, s);
-    if (animate && MOTION) { el.classList.add("enter"); el.style.animationDelay = 160 + k * 30 + "ms"; }
-    box.appendChild(el);
-  });
-}
-$("recsMore").onclick = () => { recSeed++; renderRecs(true); };
+$("recsMore").onclick = () => { recSeed++; refresh(); };
 
 function sharedFavsSheet(songs) {
   const fresh = () => songs.filter(s => !isFav(s)).length;
