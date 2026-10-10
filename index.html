@@ -50,7 +50,8 @@
   .mark{display:inline-flex;align-items:center;gap:9px;font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
   .mark em{font-style:normal;background:linear-gradient(90deg,var(--part-a),#FF6FA0 45%,var(--part-b));
            -webkit-background-clip:text;background-clip:text;color:transparent}
-  .logo{display:block;flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#DED9D3}
+  /* logo-102.png is 34px at 3x with its rounded corners already in it: nothing to clip or scale */
+  .logo{display:block;flex:0 0 auto;width:34px;height:34px}
   /* loading equaliser */
   .eq{display:flex;gap:4px;align-items:flex-end;height:22px}
   .eq i{width:5px;border-radius:3px;background:linear-gradient(var(--part-b),var(--part-a));height:100%;
@@ -78,7 +79,7 @@
   /* Pinned to the screen (fixed) rather than sticky, with the page padded by its height: Safari
      scrolls fixed layers on its own scrolling thread, and the sliding rows inside no longer make
      it re-work a sticky element's position mid-scroll. */
-  .top{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none}
+  .top{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none;padding-top:var(--bar-h,0px)}
   .top .wrap > *{pointer-events:auto}
   /* The logo row and the sliding rows are each the full screen width with a solid background,
      and each is kept as its own layer for good (will-change). Otherwise Safari makes the logo
@@ -86,6 +87,7 @@
      gradient title each time, which is when scrolling stuttered. */
   .top > .wrap{max-width:none}
   .bar,.more{--side:max(0px, calc((100vw - 640px) / 2));background:#0B0614;will-change:transform}
+  .bar[hidden]{display:none!important}
   /* Opening or shutting must change nothing but the slide itself (a transform) and the chevron's
      fade (opacity), both already on layers of their own, so nothing is redrawn or laid out just as
      the compositor starts the slide. Redrawing then (the logo row for its border colour, the
@@ -94,8 +96,12 @@
      hangs just below them, so shut it shows under the logo row without the logo row changing; the
      tabs and filters stay tappable when shut (they sit wholly behind the logo row and above the
      screen). */
-  .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
-       padding:calc(12px + env(safe-area-inset-top)) calc(var(--pad) + var(--side)) 10px}
+  /* The logo row is its own fixed element, outside the header that opens and shuts, on a layer
+     of its own that nothing ever changes: it never moves and is never redrawn. The header sits
+     below it (padded by its height) and its rows slide up behind it. */
+  .bar{position:fixed;top:0;left:0;right:0;z-index:6;contain:layout paint style}
+  .bar-in{display:flex;align-items:center;gap:10px;
+          padding:calc(12px + env(safe-area-inset-top)) calc(var(--pad) + var(--side)) 10px}
   .more{position:relative;z-index:1;padding-inline:var(--side);transition:transform .32s var(--spring)}
   .more::after{content:"";position:absolute;left:0;right:0;top:100%;height:1px;background:var(--rail)}
   .top.collapsed .more{transform:translate3d(0,-100%,0)}
@@ -362,7 +368,7 @@
 
 <main class="gate" id="gate">
   <div class="card" id="gateCard">
-    <div class="mark"><img class="logo" src="img/logo-128.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></div>
+    <div class="mark"><img class="logo" src="img/logo-102.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></div>
     <h1 id="gateTitle">Opening the songbook…</h1>
     <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="msg stop" id="gateMsg" role="alert" hidden></div>
@@ -371,12 +377,12 @@
 </main>
 
 <div id="app" hidden>
-  <header class="top" id="top">
-    <div class="wrap">
-      <div class="bar"><span class="mark"><img class="logo" src="img/logo-128.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></span>
+  <div class="bar" id="bar"><div class="bar-in"><span class="mark"><img class="logo" src="img/logo-102.png" width="34" height="34" alt=""><span>Mad Dog <em>Karaoke</em></span></span>
         <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
-          d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div>
+          d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div></div>
+  <header class="top" id="top">
+    <div class="wrap">
       <div class="more" id="more">
       <div class="seg"><nav class="tabs" id="tabs" data-on="songs" aria-label="View">
         <span class="pill" aria-hidden="true"></span>
@@ -811,16 +817,19 @@ function draw(listTop) {
   if (frag.firstChild) list.appendChild(frag);
 }
 
-const top = $("top"), bar = top.querySelector(".bar"), more = $("more"), chev = $("chev");
+const top = $("top"), bar = $("bar"), more = $("more"), chev = $("chev");
 // Scrolling only flips a class when the direction changes; nothing moves frame by frame.
 let lastY = 0, travel = 0;
 let topH = 0, moreH = 0, barH = 0, shut = false;
 function measureHeader() {
-  topH = top.offsetHeight; moreH = more.offsetHeight; barH = bar.offsetHeight;
+  const b = bar.offsetHeight;
+  if (b !== barH) { barH = b; top.style.setProperty("--bar-h", b + "px"); }
+  topH = top.offsetHeight; moreH = more.offsetHeight;
   $("app").style.paddingTop = topH + 1 + "px";   // room for the fixed header and its hairline
   placeJump();
 }
-new ResizeObserver(measureHeader).observe(top);
+const headerSizes = new ResizeObserver(measureHeader);
+headerSizes.observe(top); headerSizes.observe(bar);
 function setShut(s) {
   if (s === shut) return;
   shut = s;
