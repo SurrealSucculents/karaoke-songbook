@@ -30,8 +30,11 @@
   html{-webkit-text-size-adjust:100%;overflow-x:clip}
   body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--ui);
        -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
-  /* stage lighting: soft pink and cyan glows behind everything */
-  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  /* stage lighting: soft pink and cyan glows behind everything. Its height is the window's, set
+     once (--glow-h, see glowFits) rather than following the window: Chrome on an iPhone resizes
+     the page on every frame while its toolbars slide in or out, at each change of scroll
+     direction, and a full-screen glow that followed would be redrawn on every one of them. */
+  body::before{content:"";position:fixed;top:0;left:0;right:0;height:var(--glow-h,100vh);z-index:-1;pointer-events:none;
        background:radial-gradient(110% 55% at 15% -8%,var(--glow-a),transparent 62%),
                   radial-gradient(90% 50% at 100% 0,var(--glow-b),transparent 60%),var(--ground)}
   [hidden]{display:none!important}
@@ -305,10 +308,14 @@
 
   /* ---------- dates dock: upcoming nights along the bottom ---------- */
   /* Solid and on its own layer: a blurred, translucent bar had to be repainted every frame
-     while the page or the browser's toolbar moved, which stuttered on phones. */
+     while the page or the browser's toolbar moved, which stuttered on phones. The room it leaves
+     for the iPhone's home bar is a shift up, not padding, with its background carried on below:
+     as a toolbar slides away that room grows a pixel at a time, and padding would change the
+     strip's height on every frame (laying it out and redrawing it); a shift is the compositor's. */
   .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;border-top:1px solid var(--rail);animation:rise .5s .15s var(--spring) both;
-        background:#0B0614;will-change:transform;
-        padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
+        background:#0B0614;will-change:transform;padding:6px 0;
+        transform:translateY(calc(-1 * env(safe-area-inset-bottom)))}
+  .dock::after{content:"";position:absolute;left:0;right:0;top:100%;height:60px;background:#0B0614}
   .dock .wrap{display:flex;align-items:center;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;
               scroll-padding-inline:var(--pad);padding:0 var(--pad);scrollbar-width:none;overscroll-behavior-x:contain}
   .dock .wrap::-webkit-scrollbar{display:none}
@@ -467,6 +474,9 @@ const DECADES = [
 ];
 const $ = id => document.getElementById(id);
 const MOTION = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+// The background glow is as tall as the window was when last measured (see body::before).
+const glowFits = () => { if (innerHeight) document.documentElement.style.setProperty("--glow-h", innerHeight + "px"); };
+glowFits();
 // Play an element's "leaving" animation, then hide it. Showing it again cancels that.
 const leaveTimers = new Map();
 function leave(el, ms) {
@@ -850,7 +860,14 @@ function onFrame() {
   draw(listTop);
 }
 addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onFrame); }, {passive: true});
-addEventListener("resize", () => { fitDock(); draw(); });
+// Chrome on an iPhone resizes the page on every frame while its toolbars slide in or out, at each
+// change of scroll direction. Only a new width (the phone turned) needs the glow and the dates
+// strip fitting again; a new height only needs the rows checked, once a frame.
+let lastWidth = innerWidth, redraw = 0;
+addEventListener("resize", () => {
+  if (innerWidth !== lastWidth) { lastWidth = innerWidth; glowFits(); fitDock(); draw(); return; }
+  if (!redraw) redraw = requestAnimationFrame(() => { redraw = 0; draw(); });
+});
 
 /* ---------------------------------------------------------------- controls */
 
@@ -1085,7 +1102,7 @@ const toastEl = $("toast");
 let toastTimer = 0;
 function toast(text) {
   toastEl.textContent = text;
-  toastEl.style.bottom = dockH + 16 + "px";
+  toastEl.style.bottom = `calc(${dockH + 16}px + env(safe-area-inset-bottom))`;
   // Restart the pop-in even if a toast is already showing.
   toastEl.hidden = true; void toastEl.offsetWidth; reveal(toastEl);
   clearTimeout(toastTimer);
@@ -1293,10 +1310,12 @@ function buildDock() {
   dockRow.scrollLeft = 0;
   fitDock();
 }
-// Keep the list's last rows clear of the dock.
+// Keep the list's last rows clear of the dock, and of the home bar's room below it. That room is
+// allowed for at its largest (34px on an iPhone) rather than as it stands, so the page's height
+// doesn't change while a toolbar slides in or out.
 function fitDock() {
   dockH = dock.hidden || $("app").hidden ? 0 : dock.offsetHeight;
-  $("app").style.paddingBottom = dockH ? dockH + "px" : "";
+  $("app").style.paddingBottom = dockH ? `calc(${dockH}px + max(34px, env(safe-area-inset-bottom)))` : "";
 }
 // A page left open overnight drops last night's date.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("app").hidden) buildDock(); });
