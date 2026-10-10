@@ -2,6 +2,7 @@
 
     python3 tools/sheet.py --out songbook-sheet.pdf
     python3 tools/sheet.py --wifi-name "Guest" --wifi-password secret
+    python3 tools/sheet.py --mono --out songbook-sheet-bw.pdf   # for a black-and-white printer
 
 Page 1 is an A4 poster for the wall or the host's desk, with what the site
 does listed big under the QR code (the song count comes from songbook.json);
@@ -32,6 +33,13 @@ ACCENT = HexColor("#ED1F61")
 BOX = HexColor("#F3F0F7")
 
 
+def use_mono():
+    """Black, white and neutral greys only: the pink and the purple-tinted greys turn
+    into dithered tints on a black-and-white printer."""
+    global INK, DIM, FAINT, ACCENT, BOX
+    INK, DIM, FAINT, ACCENT, BOX = (HexColor(h) for h in ("#000000", "#444444", "#777777", "#000000", "#EDEDED"))
+
+
 def qr(c, x, y, size, url, level="Q"):
     w = QrCodeWidget(url, barLevel=level, barWidth=size, barHeight=size, barBorder=2)
     w.barFillColor = INK
@@ -40,9 +48,9 @@ def qr(c, x, y, size, url, level="Q"):
     renderPDF.draw(d, c, x, y)
 
 
-def centred(c, text, y, font, size, colour=INK, cx=A4[0] / 2, spacing=0):
+def centred(c, text, y, font, size, colour=None, cx=A4[0] / 2, spacing=0):
     c.setFont(font, size)
-    c.setFillColor(colour)
+    c.setFillColor(colour or INK)
     if spacing:
         width = sum(c.stringWidth(ch, font, size) for ch in text) + spacing * (len(text) - 1)
         c.saveState()  # character spacing would otherwise stick to every later line
@@ -82,9 +90,9 @@ def wifi_payload(name, password):
     return f"WIFI:T:WPA;S:{esc(name)};P:{esc(password)};;"
 
 
-def text(c, x, y, s, font, size, colour=INK):
+def text(c, x, y, s, font, size, colour=None):
     c.setFont(font, size)
-    c.setFillColor(colour)
+    c.setFillColor(colour or INK)
     c.drawString(x, y, s)
 
 
@@ -283,8 +291,11 @@ def main():
     ap.add_argument("--name", default=NAME)
     ap.add_argument("--wifi-name", help="venue Wi-Fi network to add a join-the-Wi-Fi QR")
     ap.add_argument("--wifi-password", help="leave out for an open network")
+    ap.add_argument("--mono", action="store_true", help="black and white only, for a mono printer")
     ap.add_argument("--out", default="songbook-sheet.pdf")
     args = ap.parse_args()
+    if args.mono:
+        use_mono()
     wifi = (args.wifi_name, args.wifi_password) if args.wifi_name else None
     c = canvas.Canvas(args.out, pagesize=A4)
     c.setTitle(f"{args.name} songbook - scan to browse")

@@ -33,6 +33,7 @@ settings, GitHub issues and renews the certificate itself.
 
 ```sh
 python3 tools/sheet.py --out songbook-sheet.pdf
+python3 tools/sheet.py --mono --out songbook-sheet-bw.pdf   # black-and-white printer
 ```
 
 Page 1 is an A4 poster listing what the site does in big type (search, browse,
