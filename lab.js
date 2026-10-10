@@ -9,7 +9,8 @@ const KEY = "mdk-lab";
 const MODES = [
   ["noshut", "Header never shuts", "The tabs and filters stay where they are; nothing slides."],
   ["instant", "Header without the slide", "It still shuts and opens, but in one step."],
-  ["steady", "Ignore toolbar changes", "The logo row, dates strip and background glow keep the size they have now, whatever the browser's toolbar does."],
+  ["oldglow", "Old background glow", "Brings back the glow that resized with the window (and so with the browser's toolbar)."],
+  ["olddock", "Old dates strip", "Brings back the dates strip that grew and shrank with the room for the home bar."],
   ["nobg", "No background glow", "Hides the pink and blue glow behind the list."],
   ["nodock", "No dates strip", "Hides the dates along the bottom."],
   ["noglow", "No Tonight pulse", "Stops the pulsing glow on tonight's date."],
@@ -33,9 +34,9 @@ const r1 = n => Math.round(n * 10) / 10;
 const css = document.createElement("style");
 css.textContent = `
 html.lab-instant .more,html.lab-instant .chev{transition:none!important}
-html.lab-steady body::before{bottom:auto!important;height:100lvh!important}
-html.lab-steady .bar-in{padding-top:calc(12px + var(--lab-sat,0px))!important}
-html.lab-steady .dock{padding-bottom:calc(6px + var(--lab-sab,0px))!important}
+html.lab-oldglow body::before{bottom:0!important;height:auto!important}
+html.lab-olddock .dock{transform:none!important;padding-bottom:calc(6px + env(safe-area-inset-bottom))!important}
+html.lab-olddock .dock::after{display:none!important}
 html.lab-nobg body::before{display:none!important}
 html.lab-nodock #dock{display:none!important}
 html.lab-noglow .night.now::after{display:none!important;animation:none!important}
@@ -72,23 +73,24 @@ for (const [name, value] of [["sat", "env(safe-area-inset-top)"], ["sab", "env(s
   probes[name] = el;
 }
 const insetNow = name => parseFloat(getComputedStyle(probes[name]).paddingTop) || 0;
-function freezeInsets() {
-  root.style.setProperty("--lab-sat", insetNow("sat") + "px");
-  root.style.setProperty("--lab-sab", insetNow("sab") + "px");
-}
 
 function applyModes() {
   for (const [k] of MODES) {
     LAB[k] = !!store.modes[k];
     root.classList.toggle("lab-" + k, LAB[k]);
   }
-  if (LAB.steady) freezeInsets();
-  // Let the page re-fit the dates strip and redraw the list (it does this on resize).
-  dispatchEvent(new Event("resize"));
+  // The old dates strip grew with the home bar's room, and the page re-fitted to it on every resize.
+  if (LAB.olddock) addEventListener("resize", refitDock); else removeEventListener("resize", refitDock);
+  refitDock();
   if (LAB.noshut) $("chev")?.click();
 }
+// The page re-fits its bottom padding to the dates strip only when the width changes; nudge it.
+function refitDock() {
+  const app = $("app"), dock = $("dock");
+  if (app.hidden || dock.hidden) return;
+  app.style.paddingBottom = `calc(${dock.offsetHeight}px + ${LAB.olddock ? "0px" : "max(34px, env(safe-area-inset-bottom))"})`;
+}
 applyModes();
-addEventListener("orientationchange", () => { if (LAB.steady) setTimeout(freezeInsets, 400); });
 
 /* ---------------------------------------------------------------- recording */
 
@@ -236,7 +238,7 @@ function reset() {
 }
 // Start afresh once the songbook has opened, so its first layout isn't counted.
 new MutationObserver((_, mo) => {
-  if (!$("app").hidden) { mo.disconnect(); setTimeout(reset, 1500); }
+  if (!$("app").hidden) { mo.disconnect(); requestAnimationFrame(refitDock); setTimeout(reset, 1500); }
 }).observe($("app"), {attributes: true, attributeFilter: ["hidden"]});
 
 /* ---------------------------------------------------------------- panel */
