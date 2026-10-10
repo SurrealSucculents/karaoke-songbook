@@ -56,6 +56,20 @@ def centred(c, text, y, font, size, colour=INK, cx=A4[0] / 2, spacing=0):
         c.drawCentredString(cx, y, text)
 
 
+def centred_parts(c, parts, y, cx=A4[0] / 2):
+    """One centred line made of (text, font, size, colour) runs, sharing a baseline."""
+    width = sum(c.stringWidth(t, f, sz) for t, f, sz, _ in parts)
+    x = cx - width / 2
+    for t, f, sz, col in parts:
+        text(c, x, y, t, f, sz, col)
+        x += c.stringWidth(t, f, sz)
+
+
+def url_line(c, url, y, size, cx=A4[0] / 2):
+    centred_parts(c, [("Can't scan it? Go to ", "Helvetica", size * 0.7, DIM),
+                      (short(url), "Helvetica-Bold", size, INK)], y, cx)
+
+
 def short(url):
     return re.sub(r"^https?://", "", url).rstrip("/")
 
@@ -200,9 +214,10 @@ def poster(c, url, name, wifi=None):
         qr(c, cx - size / 2, H - 56 * mm - size, size, url)
         fs = 23.5
         bw = block_width(c, items, fs)
-        feature_list(c, cx - bw / 2, H - 145 * mm, items, fs, 19 * mm)
-        centred(c, f"Can't scan it? Go to {short(url)}", 23 * mm, "Helvetica", 12, DIM)
-        centred(c, "Found your song? Show it to the host with your first name.", 14 * mm, "Helvetica", 11, FAINT)
+        feature_list(c, cx - bw / 2, H - 143 * mm, items, fs, 18.5 * mm)
+        url_line(c, url, 38 * mm, 19)
+        centred(c, "Or just come up and ask", 25 * mm, "Helvetica-Bold", 24, ACCENT)
+        centred(c, "Found your song? Show it to the host with your first name.", 12 * mm, "Helvetica", 11, FAINT)
         return
 
     # Room for the Wi-Fi panel: a smaller songbook QR, then the features as headlines in two columns.
@@ -217,7 +232,8 @@ def poster(c, url, name, wifi=None):
     ftop = H - 56 * mm - size - 8 * mm
     feature_list(c, x0, ftop, left, fs, 12 * mm, detail=False)
     feature_list(c, x0 + lw + gutter, ftop, right, fs, 12 * mm, detail=False)
-    centred(c, f"Can't scan it? Go to {short(url)}", ftop - half * 12 * mm - 5 * mm, "Helvetica", 11.5, DIM)
+    url_line(c, url, ftop - half * 12 * mm - 6 * mm, 17)
+    centred(c, "Or just come up and ask", ftop - half * 12 * mm - 17 * mm, "Helvetica-Bold", 20, ACCENT)
 
     box_x, box_y, box_w, box_h = 22 * mm, 22 * mm, W - 44 * mm, 44 * mm
     c.setFillColor(BOX)
@@ -248,14 +264,14 @@ def cards(c, url, name, wifi=None):
                 few = [features()[i] for i in (0, 2, 4)]
                 bw = block_width(c, [(k, h, "") for k, h, _ in few], 10.5)
                 feature_list(c, cx - bw / 2, y0 + 45 * mm, few, 10.5, 8 * mm, detail=False)
-                centred(c, short(url), y0 + 10 * mm, "Helvetica", 8.5, DIM, cx=cx)
+                centred(c, short(url), y0 + 10 * mm, "Helvetica-Bold", 12, cx=cx)
                 continue
             centred(c, name.upper(), y0 + ch - 11 * mm, "Helvetica-Bold", 8, FAINT, cx=cx, spacing=2.2)
             centred(c, "Find your song", y0 + ch - 20 * mm, "Helvetica-Bold", 19, cx=cx)
             centred(c, "Scan with your phone camera", y0 + ch - 26.5 * mm, "Helvetica", 10, DIM, cx=cx)
             size = 48 * mm
             qr(c, cx - size / 2, y0 + ch - 30 * mm - size, size, url)
-            centred(c, short(url), y0 + 46 * mm, "Helvetica", 8.5, DIM, cx=cx)
+            centred(c, short(url), y0 + 45 * mm, "Helvetica-Bold", 11, cx=cx)
             c.setFillColor(BOX)
             c.roundRect(x0 + 7 * mm, y0 + 7 * mm, cw - 14 * mm, 33 * mm, 3 * mm, stroke=0, fill=1)
             wifi_block(c, x0 + 10 * mm, y0 + 10 * mm, 27 * mm, wifi, scale=0.62)
