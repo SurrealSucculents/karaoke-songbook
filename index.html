@@ -241,7 +241,9 @@
   .sheet .song-big .sub{margin:0;font-size:clamp(24px,7.5vw,38px);font-weight:600;line-height:1.1;color:var(--ink);overflow-wrap:anywhere}
   .ask.big{padding:14px 16px;font-size:clamp(20px,6vw,28px);font-weight:700;line-height:1.2;color:var(--ink)}
   .go.request{font-size:20px;min-height:58px}
-  .acts .artist{margin-left:auto;font-size:14px;white-space:nowrap}
+  .artist-link{background:none;border:0;padding:6px 0;min-height:44px;color:var(--ink);font-size:15px;font-weight:600;
+               text-decoration:underline;text-decoration-color:var(--part-a);text-decoration-thickness:2px;text-underline-offset:4px;text-align:left}
+  .acts .icon-share{margin-left:auto}
   /* request screen: shown to the host, so as big and plain as it can be */
   .request-screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;gap:clamp(20px,5vh,48px);
                   justify-content:center;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
@@ -1026,10 +1028,10 @@ function songSheet(s, onArtistPage) {
     <button type="button" class="go request" data-act="request">Request song</button>
     <button type="button" class="listen" data-act="listen"><svg viewBox="0 0 24 24" fill="currentColor"
       aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>Listen to song</button>
-    <div class="acts"><button type="button" class="icon-share" data-act="share" aria-label="Share this song"><svg viewBox="0 0 24 24"
+    <div class="acts">${all > 1 ? `<button type="button" class="artist-link" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs ›</button>` : ""}
+      <button type="button" class="icon-share" data-act="share" aria-label="Share this song"><svg viewBox="0 0 24 24"
         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
-        d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
-      ${all > 1 ? `<button type="button" class="listen artist" data-act="artist" aria-label="All ${fmt(all)} songs by ${esc(s.artist.name)}">View artist’s ${fmt(all)} songs</button>` : ""}</div>`,
+        d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button></div>`,
     el => {
       el.querySelector('[data-act="share"]').onclick = () => shareSong(s);
       el.querySelector('[data-act="request"]').onclick = () => openRequest(s);
