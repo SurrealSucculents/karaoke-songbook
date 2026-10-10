@@ -252,6 +252,21 @@
   .plain .t,.plain .a{white-space:normal}
   .plain{margin:0 var(--pad);border-top:1px solid var(--rail)}
 
+  /* recommendations, under the saved songs */
+  .recs{margin:26px 0 8px;animation:rise .45s .1s var(--spring) both}
+  .recs-head{display:flex;align-items:baseline;gap:12px;padding:0 var(--pad)}
+  .recs h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.015em}
+  .recs h2 em{font-style:normal;background:linear-gradient(90deg,var(--part-a),var(--part-b));
+              -webkit-background-clip:text;background-clip:text;color:transparent}
+  .recs-head .quiet{margin-left:auto;font-size:13px;min-height:0;padding:0}
+  .recs > .sub{margin:2px var(--pad) 10px;color:var(--dim);font-size:13.5px}
+  .recs .row{grid-template-columns:1fr auto}
+  .recs .why{display:block;font-size:12px;font-weight:600;color:var(--part-b);margin-top:3px;
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .quick{width:40px;height:40px;border-radius:999px;border:1px solid var(--edge);background:transparent;
+         color:var(--dim);font-size:17px;line-height:1;display:grid;place-items:center}
+  .quick[aria-pressed="true"]{background:var(--part-a);border-color:var(--part-a);color:#fff}
+
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
                          animation-delay:0s!important;transition-duration:.01ms!important}
@@ -304,6 +319,12 @@
   </header>
   <div class="wrap">
     <div class="list" id="list" role="list"></div>
+    <section class="recs" id="recs" hidden aria-labelledby="recsTitle">
+      <div class="recs-head"><h2 id="recsTitle">Recommended <em>for you</em></h2>
+        <button class="quiet" type="button" id="recsMore">Show different ones</button></div>
+      <p class="sub">Picked from the songs you've saved.</p>
+      <div class="plain" id="recsList" role="list"></div>
+    </section>
     <div class="empty" id="empty" hidden>
       <b id="emptyHead">Nothing matches that</b>
       <span id="emptyWhy">Try a different spelling, or fewer filters.</span>
@@ -592,6 +613,7 @@ function refresh(keepScroll) {
   if (!keepScroll) window.scrollTo(0, 0);
   entering = !keepScroll && MOTION;
   draw();
+  renderRecs(!keepScroll);
 }
 
 function label(btn, name, picked) {
@@ -914,6 +936,92 @@ function shareFavs() {
   });
 }
 $("favShare").onclick = shareFavs;
+
+/* ---------------------------------------------------------------- recommendations */
+
+// There are no play counts, so this leans on what each song is: songs that share the
+// artist, genre, decade and singer type of the guest's favourites score highest, and
+// acts with a big catalogue (a fair sign of a karaoke staple) get a nudge. A little
+// seeded randomness keeps the list fresh day to day, and "Show different ones" reshuffles.
+let recSeed = Math.floor(Date.now() / 864e5);
+function jitter(i) {
+  let x = Math.imul(i + 1, 2654435761) ^ recSeed;
+  x = Math.imul(x ^ (x >>> 15), 2246822507);
+  x = Math.imul(x ^ (x >>> 13), 3266489909);
+  return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
+}
+
+function recommend(n) {
+  const favs = SONGS.filter(isFav);
+  if (!favs.length) return [];
+  const tally = key => {
+    const m = new Map();
+    for (const f of favs) { const k = key(f); if (k !== -1) m.set(k, (m.get(k) || 0) + 1); }
+    return m;
+  };
+  const G = tally(f => f.g), D = tally(f => f.dec), V = tally(f => f.v), A = tally(f => f.artist);
+  const share = (m, k) => (m.get(k) || 0) / favs.length;
+  const scored = [];
+  for (const s of SONGS) {
+    if (isFav(s) || !passes(s)) continue;
+    const sameArtist = A.has(s.artist);
+    // Only songs that share something real with the favourites.
+    if (!sameArtist && !G.has(s.g)) continue;
+    const score = 3 * share(G, s.g) + 2 * share(D, s.dec) + share(V, s.v) +
+                  0.25 * Math.min(6, Math.log2(s.artist.songs.length)) + 1.2 * jitter(s.i);
+    scored.push([score, s]);
+  }
+  scored.sort((a, b) => b[0] - a[0]);
+  // Alternate more from acts they've saved (two each at most) with acts that are new to
+  // them (one each), so it's half familiar, half discovery and never one discography.
+  const known = [], fresh = [], per = new Map();
+  for (const [, s] of scored) {
+    const mine = A.has(s.artist), c = per.get(s.artist) || 0;
+    if (c >= (mine ? 2 : 1)) continue;
+    const q = mine ? known : fresh;
+    if (q.length >= n) continue;
+    per.set(s.artist, c + 1);
+    q.push(s);
+    if (known.length >= n && fresh.length >= n) break;
+  }
+  const out = [];
+  for (let i = 0; out.length < n && (i < known.length || i < fresh.length); i++) {
+    if (i < known.length) out.push(known[i]);
+    if (i < fresh.length && out.length < n) out.push(fresh[i]);
+  }
+  return out.map(s => ({s, why: reason(s, favs)}));
+}
+
+function reason(s, favs) {
+  if (favs.some(f => f.artist === s.artist)) return `More from ${s.artist.name}`;
+  const close = favs.find(f => f.g === s.g && f.dec === s.dec && s.dec >= 0) || favs.find(f => f.g === s.g);
+  return close ? `Like ${close.t}` : "";
+}
+
+function renderRecs(animate) {
+  const box = $("recsList");
+  const show = state.tab === "saved" && FAVS.size > 0 && !state.q.trim();
+  const recs = show ? recommend(12) : [];
+  $("recs").hidden = !recs.length;
+  box.innerHTML = "";
+  recs.forEach(({s, why}, k) => {
+    const el = document.createElement("div");
+    el.className = "row"; el.setAttribute("role", "listitem");
+    el.innerHTML = `<span class="tx"><span class="t">${esc(s.t)}</span><span class="a">${esc(s.by)}${s.y ? ` · ${s.y}` : ""}</span>` +
+      `${why ? `<span class="why">${esc(why)}</span>` : ""}</span>` +
+      `<button type="button" class="quick" aria-pressed="false" aria-label="Save ${esc(s.t)}">♡</button>`;
+    el.onclick = () => songSheet(s);
+    el.querySelector(".quick").onclick = e => {
+      e.stopPropagation();
+      toggleFav(s);
+      toast("Saved to your favourites");
+      refresh(true);
+    };
+    if (animate && MOTION) { el.classList.add("enter"); el.style.animationDelay = 160 + k * 30 + "ms"; }
+    box.appendChild(el);
+  });
+}
+$("recsMore").onclick = () => { recSeed++; renderRecs(true); };
 
 function sharedFavsSheet(songs) {
   const fresh = () => songs.filter(s => !isFav(s)).length;

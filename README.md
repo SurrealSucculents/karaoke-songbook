@@ -128,6 +128,14 @@ sends a link with the songs in it: opening it on any phone offers to save them
 again. Saved songs are matched by title and artist, so rebuilding the song
 list doesn't lose them.
 
+Under the saved songs, **Recommended for you** suggests a dozen more. There are
+no play counts, so it matches on what each song is: the same acts, genres,
+decades and singer types as their favourites, with a nudge for acts that have a
+big catalogue. It alternates more from acts they've saved with acts new to them
+(at most two songs from any act already saved, one from a new act), changes a
+little each day, and **Show different ones** reshuffles. It all runs on the
+phone; nothing is sent anywhere.
+
 ## Files
 
 | | |
