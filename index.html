@@ -129,8 +129,6 @@
   .t,.a{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .t{font-size:16px;font-weight:600;line-height:1.25}
   .a{font-size:13px;color:var(--dim);margin-top:2px}
-  .yr .heart{font-family:var(--ui);color:var(--part-a);margin-right:6px;font-size:13px}
-  .yr{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--faint);letter-spacing:.02em}
   .n{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--faint)}
   .n::after{content:" ›";font-family:var(--ui);font-size:17px;color:var(--faint)}
   .empty{padding:40px var(--pad);text-align:center;color:var(--dim);display:grid;gap:12px;justify-items:center;
@@ -258,6 +256,8 @@
   .quick{width:40px;height:40px;border-radius:999px;border:1px solid var(--edge);background:transparent;
          color:var(--dim);font-size:17px;line-height:1;display:grid;place-items:center}
   .quick[aria-pressed="true"]{background:var(--part-a);border-color:var(--part-a);color:#fff}
+  .quick.pop{animation:beat .45s var(--spring)}
+  #list .quick,#artistList .quick{width:38px;height:38px;font-size:16px}
 
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
@@ -621,8 +621,9 @@ function rowFor(item, pos) {
   el.style.transform = `translateY(${pos * ROW}px)`;
   if (songMode()) {
     el.innerHTML = `<span class="tx"><span class="t">${esc(item.t)}</span><span class="a">${esc(item.by)}</span></span>` +
-                   `<span class="yr">${isFav(item) ? `<span class="heart" aria-label="Saved">♥</span>` : ""}${item.y || ""}</span>`;
+                   heartHTML(item);
     el.onclick = () => songSheet(item);
+    wireHeart(el, item);
   } else {
     const g = item.a.genre >= 0 ? GENRES[item.a.genre] : "";
     el.innerHTML = `<span class="tx"><span class="t">${esc(item.a.name)}</span><span class="a">${esc(g)}</span></span>` +
@@ -845,7 +846,7 @@ function songSheet(s, onArtistPage) {
         fav.innerHTML = isFav(s) ? `<b aria-hidden="true">♥</b>Saved` : `<b aria-hidden="true">♡</b>Save`;
       };
       fav.onclick = () => {
-        toggleFav(s); show(); refresh(true);
+        toggleFav(s); show(); refresh(true); syncHearts();
         if (isFav(s)) toast("Saved to your favourites");
       };
       show();
@@ -917,6 +918,33 @@ function shareFavs() {
   });
 }
 $("favShare").onclick = shareFavs;
+
+/* ---------------------------------------------------------------- heart buttons */
+
+// One-tap save on any song row. Rows on the Saved tab come and go with it, so that tab is
+// rebuilt; elsewhere the button just updates in place.
+const heartSong = new WeakMap();
+const heartHTML = s => `<button type="button" class="quick" aria-pressed="${isFav(s)}" ` +
+  `aria-label="${isFav(s) ? "Remove" : "Save"} ${esc(s.t)}">${isFav(s) ? "♥" : "♡"}</button>`;
+function paintHeart(b) {
+  const s = heartSong.get(b), on = isFav(s);
+  b.setAttribute("aria-pressed", on);
+  b.setAttribute("aria-label", `${on ? "Remove" : "Save"} ${s.t}`);
+  b.textContent = on ? "♥" : "♡";
+}
+function wireHeart(row, s) {
+  const b = row.querySelector(".quick");
+  heartSong.set(b, s);
+  b.onclick = e => {
+    e.stopPropagation();
+    toggleFav(s);
+    paintHeart(b);
+    if (isFav(s)) { b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); toast("Saved to your favourites"); }
+    if (state.tab === "saved") refresh(true);
+  };
+}
+// After saving from a song card, bring the artist page's hearts up to date.
+const syncHearts = () => document.querySelectorAll("#artistList .quick").forEach(paintHeart);
 
 /* ---------------------------------------------------------------- recommendations */
 
@@ -990,14 +1018,9 @@ function renderRecs(animate) {
     el.className = "row"; el.setAttribute("role", "listitem");
     el.innerHTML = `<span class="tx"><span class="t">${esc(s.t)}</span><span class="a">${esc(s.by)}${s.y ? ` · ${s.y}` : ""}</span>` +
       `${why ? `<span class="why">${esc(why)}</span>` : ""}</span>` +
-      `<button type="button" class="quick" aria-pressed="false" aria-label="Save ${esc(s.t)}">♡</button>`;
+      heartHTML(s);
     el.onclick = () => songSheet(s);
-    el.querySelector(".quick").onclick = e => {
-      e.stopPropagation();
-      toggleFav(s);
-      toast("Saved to your favourites");
-      refresh(true);
-    };
+    wireHeart(el, s);
     if (animate && MOTION) { el.classList.add("enter"); el.style.animationDelay = 160 + k * 30 + "ms"; }
     box.appendChild(el);
   });
@@ -1110,8 +1133,9 @@ function openArtist(a, replace) {
     // Second line only when it says something the header doesn't.
     const sub = s.by !== a.name ? s.by : (s.g >= 0 && s.g !== a.genre ? GENRES[s.g] : "");
     el.innerHTML = `<span class="tx"><span class="t">${esc(s.t)}</span>${sub ? `<span class="a">${esc(sub)}</span>` : ""}</span>` +
-      `<span class="yr">${s.y || ""}</span>`;
+      heartHTML(s);
     el.onclick = () => songSheet(s, true);
+    wireHeart(el, s);
     if (MOTION && box.children.length < 14) {
       el.classList.add("enter"); el.style.animationDelay = 120 + box.children.length * 24 + "ms";
     }

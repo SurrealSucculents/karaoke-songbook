@@ -119,8 +119,9 @@ where there isn't one. Shared links open straight onto the song
 
 ## Favourites
 
-Tap a song, then **Save**, and it shows up under the **Saved** tab and with a ♥
-in the list. Favourites are kept in the browser on that phone (`localStorage`),
+Tap the ♡ on any song row (or **Save** on the song itself) and it shows up under
+the **Saved** tab. Rows show the heart rather than the year; the year is on the
+song itself. Favourites are kept in the browser on that phone (`localStorage`),
 so there are no accounts and nothing is sent anywhere. They stay until the
 guest clears their browser data. Safari on iPhone can clear a site's stored data
 after about 7 days of use without a visit, so **Share my list** on the Saved tab
