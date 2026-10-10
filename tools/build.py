@@ -34,8 +34,9 @@ LIST = os.path.join(ROOT, "songbook.json")
 VOICES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artist_voices.json")
 VOICE_CODES = {"m": 1, "f": 2, "d": 3}
 RANGES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artist_ranges.json")
-# Voice type of an act's lead singer, for "Fine tune my recommendations". 0 is unknown.
-RANGES = ["soprano", "mezzo", "alto", "tenor", "baritone", "bass"]
+# How high an act's lead singer sings, for a man or for a woman as the case may be, for
+# "Fine tune my recommendations". 0 is unknown.
+RANGES = ["very high", "high", "medium", "low", "very low"]
 
 GENRES = ["Pop", "Rock", "Indie & Alternative", "Dance", "R&B & Soul", "Hip-Hop & Rap",
           "Country", "Musicals & Film", "Christmas", "Swing & Easy Listening",
@@ -58,8 +59,8 @@ def pack(songs):
     """[{t, a, p, y, g, v}] -> compact JSON the page reads.
 
     v is the singer type: 0 unknown, 1 male, 2 female, 3 duet.
-    r has one digit per artist: their voice type from tools/artist_ranges.json,
-    1-6 in the order of RANGES, 0 unknown.
+    r has one digit per artist: their voice from tools/artist_ranges.json,
+    1-5 in the order of RANGES, 0 unknown.
     """
     artists = sorted({s["p"] for s in songs}, key=lambda a: (artist_sort_key(a), a))
     ranges = artist_ranges()
@@ -97,7 +98,7 @@ def artist_voices():
 
 
 def artist_ranges():
-    """Voice type per act (1-6, see RANGES), by clean.key of the act's name."""
+    """Voice per act (1-5, see RANGES), by clean.key of the act's name."""
     if not os.path.exists(RANGES_FILE):
         return {}
     with open(RANGES_FILE, encoding="utf-8") as f:

@@ -217,8 +217,6 @@
   /* fine-tune sheet: one labelled group of chips per question */
   .ask-group{display:grid;gap:8px}
   .ask-group h3{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
-  .chip small{font-size:12px;font-weight:500;color:var(--faint)}
-  .chip.on small{color:var(--dim)}
   .acts .go{flex:1}
   .acts .go.small{flex:0 0 auto;width:auto;margin-left:auto;min-height:40px;padding:9px 16px;font-size:14px;white-space:nowrap}
 
@@ -566,19 +564,19 @@ function toggleFav(s) {
 /* ================================================================ fine tune */
 
 // What the guest told "Fine tune my recommendations": the decade they were born, the singer
-// they like to sing as (0 male, 1 female, 2 duets) and their voice type (an index into RANGES).
-// -1 is "not set". Kept on this phone only, like the favourites.
+// they like to sing as (0 male, 1 female, 2 duets) and how high they sing (an index into
+// RANGES: high or low for a man or a woman, as the singers are graded). -1 is "not set".
+// Kept on this phone only, like the favourites.
 const TUNE_KEY = "mdk-tune";
-const RANGES = [["Soprano", "high"], ["Mezzo", "middle"], ["Alto", "low"],
-                ["Tenor", "high"], ["Baritone", "middle"], ["Bass", "low"]];
+const RANGES = ["Very high", "High", "Medium", "Low", "Very low"];
 const BORN = [1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010];
 const SINGS = ["Male", "Female", "Duets"];
-let TUNE = {born: -1, sing: -1, range: -1};
+let TUNE = {born: -1, sing: -1, voice: -1};
 try {
   const t = JSON.parse(localStorage.getItem(TUNE_KEY)) || {};
   for (const k in TUNE) if (Number.isInteger(t[k])) TUNE[k] = t[k];
 } catch {}
-const tuned = () => TUNE.born >= 0 || TUNE.sing >= 0 || TUNE.range >= 0;
+const tuned = () => TUNE.born >= 0 || TUNE.sing >= 0 || TUNE.voice >= 0;
 function saveTune() {
   try { localStorage.setItem(TUNE_KEY, JSON.stringify(TUNE)); } catch {}
 }
@@ -594,7 +592,7 @@ function start(data, schedule) {
   GENRES = data.g;
   NIGHTS = schedule.nights;
   VENUE = schedule.venue || "";
-  // r: one digit per artist, their voice type (1-6 in RANGES order), 0 unknown.
+  // r: one digit per artist, how high they sing (1-5 in RANGES order), 0 unknown.
   ARTISTS = data.a.map((name, i) => {
     const k = fold(name).replace(/^the /, "");
     return {i, name, k, letter: letterOf(k), songs: [], range: (+(data.r || "")[i] || 0) - 1};
@@ -1233,9 +1231,9 @@ function fit(s) {
     sum += 2 * (TUNE.sing === 2 ? (s.v === 2 ? 1 : .2) : s.v === TUNE.sing ? 1 : s.v === 2 ? .6 : .4);
     of += 2;
   }
-  if (TUNE.range >= 0) {
-    const r = s.artist.range, same = r >= 0 && (r < 3) === (TUNE.range < 3);
-    sum += 2 * (r < 0 ? .4 : r === TUNE.range ? 1 : same && Math.abs(r - TUNE.range) === 1 ? .5 : 0);
+  if (TUNE.voice >= 0) {
+    const r = s.artist.range;
+    sum += 2 * (r < 0 ? .4 : r === TUNE.voice ? 1 : Math.abs(r - TUNE.voice) === 1 ? .5 : 0);
     of += 2;
   }
   return of ? sum / of : 0;
@@ -1304,23 +1302,17 @@ $("recsMore").onclick = () => { recSeed++; refresh(); };
 function tuneSheet() {
   const draft = {...TUNE};
   const group = (key, title, opts) => `<section class="ask-group" data-key="${key}"><h3>${title}</h3><div class="chips">` +
-    opts.map(([i, name, hint]) => `<button type="button" class="chip${draft[key] === i ? " on" : ""}" data-i="${i}" ` +
-      `aria-pressed="${draft[key] === i}">${esc(name)}${hint ? ` <small>${esc(hint)}</small>` : ""}</button>`).join("") +
+    opts.map((name, i) => `<button type="button" class="chip${draft[key] === i ? " on" : ""}" data-i="${i}" ` +
+      `aria-pressed="${draft[key] === i}">${esc(name)}</button>`).join("") +
     `</div></section>`;
-  // Voice types to offer for the singer picked: men's for Male, women's for Female, all six otherwise.
-  const ranges = () => [...RANGES.keys()].filter(i => draft.sing < 0 || draft.sing === 2 || (i < 3) === (draft.sing === 1))
-    .map(i => [i, ...RANGES[i]]);
   openSheet(`
     <h2 id="sheetTitle">Fine tune my recommendations</h2>
     <p class="sub">Tell us a bit about you and For you will pick songs to suit. Skip anything you like.</p>
-    ${group("born", "The decade you were born", BORN.map((y, i) => [i, `${y}s`]))}
-    ${group("sing", "Songs sung by", SINGS.map((v, i) => [i, v]))}
-    <div data-ranges></div>
+    ${group("born", "The decade you were born", BORN.map(y => `${y}s`))}
+    ${group("sing", "Songs sung by", SINGS)}
+    ${group("voice", "How high you sing", RANGES)}
     <div class="acts stick"><button type="button" class="quiet" data-act="clear">Clear</button>
       <button type="button" class="go" data-act="save">Show my picks</button></div>`, el => {
-    const drawRanges = () => {
-      el.querySelector("[data-ranges]").innerHTML = group("range", "Your voice", ranges());
-    };
     // One choice per question; tapping the chosen one again unpicks it.
     el.addEventListener("click", e => {
       const c = e.target.closest(".chip"), key = c?.closest(".ask-group").dataset.key;
@@ -1331,15 +1323,10 @@ function tuneSheet() {
         const on = +x.dataset.i === draft[key];
         x.classList.toggle("on", on); x.setAttribute("aria-pressed", on);
       });
-      if (key === "sing") {
-        if (draft.range >= 0 && !ranges().some(([r]) => r === draft.range)) draft.range = -1;
-        drawRanges();
-      }
     });
     el.querySelector('[data-act="clear"]').onclick = () => {
-      draft.born = draft.sing = draft.range = -1;
+      draft.born = draft.sing = draft.voice = -1;
       el.querySelectorAll(".chip").forEach(x => { x.classList.remove("on"); x.setAttribute("aria-pressed", false); });
-      drawRanges();
     };
     el.querySelector('[data-act="save"]').onclick = () => {
       Object.assign(TUNE, draft);
@@ -1348,7 +1335,6 @@ function tuneSheet() {
       setTab("foryou");
       if (tuned()) toast("Picks tuned to you");
     };
-    drawRanges();
   });
 }
 $("tune").onclick = tuneSheet;

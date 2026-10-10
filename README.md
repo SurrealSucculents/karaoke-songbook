@@ -147,18 +147,21 @@ nothing is sent anywhere.
 
 **Fine tune my recommendations** (the sliders button next to Share) asks the
 decade the guest was born, whether they like songs sung by men, women or duets,
-and their voice type (soprano, mezzo, alto, tenor, baritone, bass). Each is
+and how high they sing (very high, high, medium, low, very low). Each is
 optional. For you then favours songs from their teens and twenties, leaves out
-songs by the other sex (duets stay in), and favours acts with the same voice
-type or the one next to it. It works with no saved songs at all; with saved
+songs by the other sex (duets stay in), and favours singers who sing as high as
+they do, or one step either side. It works with no saved songs at all; with saved
 songs, it steers those picks. The answers are kept on the phone, like saved
 songs, and a pink dot on the button shows they're set.
 
-Voice types come from `tools/artist_ranges.json`, the lead singer's usual voice
-type for the acts with the most songs (about half the list). Like the singer
+How high each act sings comes from `tools/artist_ranges.json`: the lead
+singer's usual voice for the acts with the most songs (about half the list),
+graded `very high` to `very low` for a man or for a woman (a tenor is `high`, a
+baritone `medium`, Johnny Cash `very low`; for women Kate Bush is `very high`,
+Cher `very low`). Like the singer
 lookup it was filled in from general knowledge, so correct it where it's wrong
 and run `python3 tools/build.py ranges` (any rebuild also picks it up). Acts not
-listed simply aren't scored on voice type.
+listed simply aren't scored on it.
 
 ## Listen to a song
 
@@ -178,5 +181,5 @@ before "Show more apps".
 | `tools/clean.py` | turns a raw export into a clean, de-duplicated list |
 | `tools/build.py` | update / export / pack `songbook.json` |
 | `tools/artist_voices.json` | singer type per act, for the Singer filter |
-| `tools/artist_ranges.json` | voice type per act, for Fine tune |
+| `tools/artist_ranges.json` | how high each act sings, for Fine tune |
 | `tools/sheet.py` | the printable QR sheet |
