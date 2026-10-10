@@ -7,7 +7,7 @@
 
 const KEY = "mdk-lab";
 const MODES = [
-  ["ownscroll", "Keep Chrome's toolbars still", "The songs scroll in their own area, so the page itself never scrolls and Chrome leaves its toolbars where they are. (The page reloads.)"],
+  ["ownscroll", "Keep Chrome's toolbars still", "Only the songs scroll, in their own area, so the page itself never scrolls and Chrome leaves its toolbars where they are. (The page reloads.)"],
   ["noshut", "Header never shuts", "The tabs and filters stay where they are; nothing slides."],
   ["instant", "Header without the slide", "It still shuts and opens, but in one step."],
   ["oldglow", "Old background glow", "Brings back the glow that resized with the window (and so with the browser's toolbar)."],
@@ -87,10 +87,12 @@ function applyModes() {
 }
 // The page re-fits its bottom padding to the dates strip only when the width changes; nudge it.
 function refitDock() {
-  const app = $("app"), dock = $("dock");
-  if (app.hidden || dock.hidden) return;
-  app.style.paddingBottom = `calc(${dock.offsetHeight}px + ${LAB.olddock ? "0px" : "max(34px, env(safe-area-inset-bottom))"})`;
+  const dock = $("dock");
+  if ($("app").hidden || dock.hidden) return;
+  padBox().style.paddingBottom = `calc(${dock.offsetHeight}px + ${LAB.olddock ? "0px" : "max(34px, env(safe-area-inset-bottom))"})`;
 }
+// In own-scroll mode the songs scroll inside #songs, which also carries the header and dock room.
+function padBox() { return root.classList.contains("own-scroll") ? $("songs") : $("app"); }
 applyModes();
 
 /* ---------------------------------------------------------------- recording */
@@ -104,8 +106,8 @@ const ev = (k, v) => events.push({t: now(), k, v});
 
 let looping = false, lastScroll = 0;
 let lastY = null, runDir = 0, runLen = 0, pending = null;
-// In own-scroll mode the songs scroll inside #app, not the page.
-const sc = root.classList.contains("own-scroll") ? $("app") : null;
+// In own-scroll mode the songs scroll inside #songs, not the page.
+const sc = root.classList.contains("own-scroll") ? $("songs") : null;
 function tick(t) {
   const y = sc ? sc.scrollTop : scrollY;
   frames.push([t, y]);
@@ -136,8 +138,8 @@ new MutationObserver(() => {
 }).observe(topEl, {attributes: true, attributeFilter: ["class"]});
 new MutationObserver(() => ev("bar-var", topEl.style.getPropertyValue("--bar-h")))
   .observe(topEl, {attributes: true, attributeFilter: ["style"]});
-new MutationObserver(() => ev("app-pad", `${$("app").style.paddingTop} / ${$("app").style.paddingBottom}`))
-  .observe($("app"), {attributes: true, attributeFilter: ["style"]});
+new MutationObserver(() => ev("app-pad", `${padBox().style.paddingTop} / ${padBox().style.paddingBottom}`))
+  .observe(padBox(), {attributes: true, attributeFilter: ["style"]});
 
 addEventListener("resize", e => { if (e.isTrusted) ev("resize", `${innerWidth}×${innerHeight}`); });
 const vv = window.visualViewport;
