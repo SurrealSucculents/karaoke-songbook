@@ -75,7 +75,10 @@
      stays smooth however busy the page is. The header keeps its height in the page
      (it's just see-through where they were), so the list underneath never jumps. Each layer
      paints its own full-width background. */
-  .top{position:sticky;top:0;z-index:5;pointer-events:none}
+  /* Pinned to the screen (fixed) rather than sticky, with the page padded by its height: Safari
+     scrolls fixed layers on its own scrolling thread, and the sliding rows inside no longer make
+     it re-work a sticky element's position mid-scroll. */
+  .top{position:fixed;top:0;left:0;right:0;z-index:5;pointer-events:none}
   .top .wrap > *{pointer-events:auto}
   /* The logo row and the sliding rows are each the full screen width with a solid background,
      and each is kept as its own layer for good (will-change). Otherwise Safari makes the logo
@@ -799,6 +802,7 @@ let lastY = 0, travel = 0;
 let topH = 0, moreH = 0, barH = 0, shut = false;
 function measureHeader() {
   topH = top.offsetHeight; moreH = more.offsetHeight; barH = bar.offsetHeight;
+  $("app").style.paddingTop = topH + "px";   // room for the fixed header
   placeJump();
 }
 new ResizeObserver(measureHeader).observe(top);
