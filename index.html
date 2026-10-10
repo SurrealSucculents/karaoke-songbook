@@ -76,17 +76,23 @@
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
   .share svg{width:16px;height:16px}
-  .search{padding:0 var(--pad);position:relative}
-  .search input{font:inherit;width:100%;padding:12px 44px 12px 42px;min-height:var(--tap);
+  /* search lives in the filter row: a button that opens into a field */
+  .filters .find{flex:0 0 42px;padding:0;display:grid;place-items:center;color:var(--ink)}
+  .filters .find svg{width:18px;height:18px}
+  .filters.searching > button,.filters.saved > button:not(.find){display:none}
+  .filters.saved .find{margin-left:auto}
+  .search{flex:1;position:relative;animation:open .3s var(--spring) both}
+  @keyframes open{from{opacity:0;clip-path:inset(0 0 0 85% round 12px)}}
+  .search input{font:inherit;width:100%;padding:9px 44px 9px 40px;min-height:42px;
                 border-radius:12px;border:1px solid var(--edge);background:var(--riser);color:var(--ink);
                 -webkit-appearance:none;appearance:none;transition:border-color .2s,box-shadow .25s}
   .search input:focus{outline:0;border-color:var(--part-a);box-shadow:0 0 0 4px rgba(237,31,97,.18)}
-  .search .glass{position:absolute;left:calc(var(--pad) + 14px);top:50%;translate:0 -50%;width:18px;height:18px;
+  .search .glass{position:absolute;left:13px;top:50%;translate:0 -50%;width:18px;height:18px;
                  color:var(--faint);pointer-events:none;transition:color .2s}
   .search input:focus ~ .glass{color:var(--part-a)}
   .search input::placeholder{color:var(--faint)}
   .search input::-webkit-search-cancel-button{display:none}
-  .search .x{position:absolute;right:calc(var(--pad) + 2px);top:2px;width:44px;height:44px;border:0;
+  .search .x{position:absolute;right:0;top:0;width:44px;height:42px;border:0;padding:0;
              background:none;color:var(--dim);font-size:22px;line-height:1;border-radius:var(--r)}
   /* segmented control with a sliding highlight */
   .seg{padding:10px var(--pad) 0}
@@ -285,13 +291,6 @@
         <button class="share" id="shareBook" type="button" aria-label="Share the songbook"><svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
           d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share</button></div>
-      <div class="search">
-        <input id="q" type="search" placeholder="Search songs or artists" autocomplete="off" autocorrect="off"
-               autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search songs or artists">
-        <svg class="glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-             aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <button class="x" id="qx" type="button" aria-label="Clear search" hidden>×</button>
-      </div>
       <div class="seg"><nav class="tabs" id="tabs" data-on="songs" aria-label="View">
         <span class="pill" aria-hidden="true"></span>
         <button type="button" class="on" data-tab="songs" aria-pressed="true">Songs</button>
@@ -303,6 +302,16 @@
         <button type="button" id="fDecade" aria-haspopup="dialog">Decade<span class="caret">▾</span></button>
         <button type="button" id="fVoice" aria-haspopup="dialog" hidden>Singer<span class="caret">▾</span></button>
         <button type="button" class="clear" id="fClear" hidden>Clear</button>
+        <button type="button" class="find" id="find" aria-label="Search"><svg viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path
+          d="m20 20-3.5-3.5"/></svg></button>
+        <div class="search" id="searchBox" hidden>
+          <input id="q" type="search" placeholder="Search songs or artists" autocomplete="off" autocorrect="off"
+                 autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search songs or artists">
+          <svg class="glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+               aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <button class="x" id="qx" type="button" aria-label="Close search">×</button>
+        </div>
       </div>
       <div class="eyebrow"><span id="summary" aria-live="polite"></span>
         <button class="quiet" type="button" id="favShare" hidden>Share my list</button></div>
@@ -586,7 +595,6 @@ function refresh(keepScroll) {
   if (state.q.trim()) summary += ` for “${state.q.trim()}”`;
   $("summary").textContent = summary;
   $("favShare").hidden = !saved || !FAVS.size;
-  $("qx").hidden = !state.q;
   $("fClear").hidden = !filtered;
   label($("fGenre"), "Genre", [...state.genres].map(g => GENRES[g]));
   label($("fDecade"), "Decade", [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
@@ -727,13 +735,33 @@ q.addEventListener("input", () => {
   clearTimeout(typing);
   typing = setTimeout(() => { state.q = q.value; refresh(); }, 90);
 });
-q.addEventListener("keydown", e => { if (e.key === "Enter") q.blur(); });
-$("qx").onclick = () => { q.value = ""; state.q = ""; refresh(); q.focus(); };
+q.addEventListener("keydown", e => {
+  if (e.key === "Enter") q.blur();
+  if (e.key === "Escape") { e.stopPropagation(); closeSearch(); }
+});
+const filters = $("filters"), searchBox = $("searchBox");
+function openSearch() {
+  filters.classList.add("searching");
+  searchBox.hidden = false;
+  q.focus();
+}
+// Closing clears the search too, so a hidden query never narrows the list.
+function closeSearch() {
+  filters.classList.remove("searching");
+  searchBox.hidden = true;
+  clearTimeout(typing);
+  if (q.value || state.q) { q.value = ""; state.q = ""; refresh(); }
+}
+$("find").onclick = openSearch;
+$("qx").onmousedown = e => e.preventDefault();   // keep the tap from blurring first
+$("qx").onclick = closeSearch;
+// Tapping away from an empty search folds it back into the button.
+q.addEventListener("blur", () => { if (!q.value.trim()) closeSearch(); });
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   state.tab = b.dataset.tab;
   $("tabs").dataset.on = state.tab;
-  $("filters").hidden = state.tab === "saved";
+  filters.classList.toggle("saved", state.tab === "saved");
   document.querySelectorAll(".tabs button").forEach(x => {
     x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
   });
@@ -743,7 +771,7 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
 });
 
 $("fClear").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); refresh(); };
-$("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); q.value = ""; state.q = ""; refresh(); };
+$("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); closeSearch(); refresh(); };
 
 /* ---------------------------------------------------------------- sheets */
 
