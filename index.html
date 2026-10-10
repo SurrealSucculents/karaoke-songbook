@@ -153,20 +153,18 @@
   .cal li span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--live)}
   .acts.stick{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));background:var(--riser);
                padding:10px 0 calc(18px + env(safe-area-inset-bottom));margin-bottom:calc(-18px - env(safe-area-inset-bottom))}
-  .cal li.pick{background:var(--lift);border-radius:var(--r);border-bottom-color:transparent;padding-inline:10px}
 
   /* ---------- dates dock: upcoming nights along the bottom ---------- */
   .dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--ground);border-top:1px solid var(--rail);
-        padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
-  .dock .wrap{display:flex;align-items:stretch;gap:var(--gap);overflow-x:auto;scroll-snap-type:x proximity;
+        padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
+  .dock .wrap{display:flex;align-items:center;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;
               scroll-padding-inline:var(--pad);padding:0 var(--pad);scrollbar-width:none;overscroll-behavior-x:contain}
   .dock .wrap::-webkit-scrollbar{display:none}
-  .dock .lead{flex:0 0 auto;align-self:center;scroll-snap-align:start;font-size:10.5px;font-weight:700;letter-spacing:.14em;line-height:1.35;
-              text-transform:uppercase;color:var(--dim);padding-right:2px}
-  .night{flex:0 0 auto;scroll-snap-align:start;min-width:74px;min-height:var(--tap);padding:6px 12px;text-align:left;
-         border:1px solid var(--rail);border-radius:var(--r);background:var(--riser);display:grid;gap:1px}
-  .night span{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
-  .night b{font-size:15px;font-weight:700;white-space:nowrap}
+  .dock .lead{flex:0 0 auto;scroll-snap-align:start;font-size:10.5px;font-weight:700;letter-spacing:.14em;
+              text-transform:uppercase;color:var(--dim);white-space:nowrap;padding-right:2px}
+  .night{flex:0 0 auto;scroll-snap-align:start;padding:3px 10px;white-space:nowrap;font-size:13.5px;font-weight:700;
+         border:1px solid var(--rail);border-radius:999px;background:var(--riser)}
+  .night span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
   .night.now{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live)}
   .night.now span{color:var(--live)}
   .toast{position:fixed;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#0B0616;
@@ -229,7 +227,7 @@
   </div>
   <nav class="jump" id="jump" aria-label="Jump to letter" hidden></nav>
   <div class="bubble" id="bubble" hidden></div>
-  <nav class="dock" id="dock" aria-label="Upcoming karaoke nights" hidden><div class="wrap" id="dockRow"></div></nav>
+  <aside class="dock" id="dock" aria-label="Upcoming karaoke nights" hidden><div class="wrap" id="dockRow" role="list"></div></aside>
 </div>
 
 <section class="page" id="artistPage" hidden aria-labelledby="artistName">
@@ -770,10 +768,10 @@ let dockH = 0;
 function buildDock() {
   const ks = upcoming();
   dock.hidden = !ks.length;
-  dockRow.innerHTML = ks.length ? `<span class="lead">Karaoke<br>nights</span>` + ks.map(k => {
+  dockRow.innerHTML = ks.length ? `<span class="lead">Karaoke nights</span>` + ks.map(k => {
     const d = dateOf(k), w = whenWord(k);
-    return `<button type="button" class="night${w === "Tonight" ? " now" : ""}" data-k="${k}" aria-label="${longDate(k)}${w ? `, ${w.toLowerCase()}` : ""}">` +
-      `<span>${w || DAYS[d.getDay()].slice(0, 3)}</span><b>${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}</b></button>`;
+    return `<span class="night${w === "Tonight" ? " now" : ""}" role="listitem" aria-label="${longDate(k)}${w ? `, ${w.toLowerCase()}` : ""}">` +
+      `<span>${w || DAYS[d.getDay()].slice(0, 3)}</span>${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}</span>`;
   }).join("") : "";
   dockRow.scrollLeft = 0;
   fitDock();
@@ -784,14 +782,10 @@ function fitDock() {
   $("app").style.paddingBottom = dockH ? dockH + "px" : "";
   placeJump();
 }
-dockRow.addEventListener("click", e => {
-  const b = e.target.closest(".night");
-  if (b) datesSheet(b.dataset.k);
-});
 // A page left open overnight drops last night's date.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("app").hidden) buildDock(); });
 
-function datesSheet(pick) {
+function datesSheet() {
   const ks = upcoming();
   const months = new Map();
   for (const k of ks) {
@@ -801,7 +795,7 @@ function datesSheet(pick) {
   }
   const cal = [...months].map(([m, days]) => `<section><h3>${m}</h3><ol>` + days.map(k => {
     const w = whenWord(k);
-    return `<li${k === pick ? ` class="pick"` : ""}>${longDate(k)}${w ? `<span>${w}</span>` : ""}</li>`;
+    return `<li>${longDate(k)}${w ? `<span>${w}</span>` : ""}</li>`;
   }).join("") + `</ol></section>`).join("");
   openSheet(`
     <h2 id="sheetTitle">Karaoke nights</h2>
@@ -811,7 +805,6 @@ function datesSheet(pick) {
       <button type="button" class="go" data-act="share">Share the dates</button></div>`, el => {
     el.querySelector('[data-act="close"]').onclick = () => closeSheet();
     el.querySelector('[data-act="share"]').onclick = shareDates;
-    el.querySelector(".pick")?.scrollIntoView({block: "center"});
   });
 }
 

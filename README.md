@@ -98,7 +98,8 @@ a guest vocalist takes the singer's type instead.
 
 ## Karaoke nights
 
-The upcoming dates run along the bottom of the page; tap one for the full list.
+The upcoming dates run along the bottom of the page, just for show. A shared
+dates link (`?dates`) opens them as a full list.
 They live in `schedule.json`, one `YYYY-MM-DD` per night:
 
 ```json
@@ -112,7 +113,7 @@ or empty, the strip just doesn't show.
 ## Sharing
 
 The **Share** button at the top, the **Share** link on a song and **Share the
-dates** use the phone's own share menu (WhatsApp, Messages…), or copy the link
+dates** (on a shared dates link) use the phone's own share menu (WhatsApp, Messages…), or copy the link
 where there isn't one. Shared links open straight onto the song
 (`?song=…&by=…`) or the list of dates (`?dates`).
 
