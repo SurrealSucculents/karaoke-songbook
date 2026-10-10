@@ -678,10 +678,10 @@ function rowFor(item, pos) {
 }
 
 let raf = 0;
-function draw() {
+function draw(listTop) {
   raf = 0;
   if ($("app").hidden) return;
-  const top = list.getBoundingClientRect().top;
+  const top = listTop ?? list.getBoundingClientRect().top;
   const first = Math.max(0, Math.floor(-top / ROW) - 8);
   const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + 8);
   for (const [pos, el] of pool) if (pos < first || pos >= last) { el.remove(); pool.delete(pos); }
@@ -698,41 +698,63 @@ function draw() {
   entering = false;
   list.appendChild(frag);
 }
-addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(draw); }, {passive: true});
 
 const top = $("top"), bar = top.querySelector(".bar"), more = $("more"), chev = $("chev");
 // hide: how many pixels of the tabs/filters/count are tucked behind the logo row.
-let hide = 0, lastY = 0, headerRaf = 0, snapTimer = 0;
-const headerH = () => top.offsetHeight - hide;
-function setHide(h, glide) {
-  hide = h;
-  more.classList.toggle("glide", !!glide);
-  more.style.transform = hide ? `translateY(${-hide}px)` : "";
-  const shut = hide > 0 && hide >= more.offsetHeight - 1;
-  top.classList.toggle("collapsed", shut);
-  chev.setAttribute("aria-expanded", !shut);
+// Runs every frame while scrolling, so it only moves a composited layer: sizes are measured
+// when they change (not per frame), and classes, attributes and the A–Z rail are touched
+// only when it flips between open and shut.
+let hide = 0, lastY = 0, snapTimer = 0;
+let topH = 0, moreH = 0, barH = 0, shut = false, gliding = false;
+function measureHeader() {
+  topH = top.offsetHeight; moreH = more.offsetHeight; barH = bar.offsetHeight;
+  if (hide > moreH) hide = moreH;
   placeJump();
+}
+new ResizeObserver(measureHeader).observe(top);
+function setHide(h, glide) {
+  glide = !!glide;
+  if (glide !== gliding) { gliding = glide; more.classList.toggle("glide", glide); }
+  if (h === hide) return;
+  hide = h;
+  more.style.transform = `translate3d(0,${-h}px,0)`;
+  const s = h > 0 && h >= moreH - 1;
+  if (s !== shut) {
+    shut = s;
+    top.classList.toggle("collapsed", s);
+    chev.setAttribute("aria-expanded", !s);
+    placeJump();
+  }
 }
 // Moves with each scroll: down tucks the rows away, up brings them back at the finger's pace.
 // It never tucks away more than has been scrolled, so at the top of the page it's always fully
 // open and there's never a gap above the first song.
-function followScroll() {
-  headerRaf = 0;
-  const y = Math.max(0, scrollY), dy = y - lastY;
+function followScroll(scrolled) {
+  const y = Math.max(0, scrolled), dy = y - lastY;
   lastY = y;
-  const next = Math.min(more.offsetHeight, y, Math.max(0, hide + dy));
+  const next = Math.min(moreH, y, Math.max(0, hide + dy));
   if (next !== hide) setHide(next);
   clearTimeout(snapTimer);
   snapTimer = setTimeout(settle, 180);
 }
 // Left part-way when the scrolling stops, it settles to whichever end is nearer.
 function settle() {
-  const h = more.offsetHeight;
+  const h = moreH;
   if (hide <= 0 || hide >= h) return;
   setHide(hide > h / 2 && scrollY >= h ? h : 0, true);
 }
 chev.onclick = () => setHide(0, true);
-addEventListener("scroll", () => { if (!headerRaf) headerRaf = requestAnimationFrame(followScroll); }, {passive: true});
+// One handler per frame while scrolling: read the scroll and list positions first, then move
+// the header and draw rows. Reading after writing would force the page to lay out mid-frame.
+let frame = 0;
+function onFrame() {
+  frame = 0;
+  if ($("app").hidden) return;
+  const y = scrollY, listTop = list.getBoundingClientRect().top;
+  followScroll(y);
+  draw(listTop);
+}
+addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onFrame); }, {passive: true});
 addEventListener("resize", () => { fitDock(); draw(); });
 
 /* ---------------------------------------------------------------- A–Z */
@@ -755,8 +777,14 @@ function buildJump() {
     .map(l => `<span class="${firstAt.has(l) ? "" : "off"}" data-l="${l}">${l}</span>`).join("");
   placeJump();
 }
+// Called when the header opens or shuts (not every frame). The rail is resized once, then
+// slid from where it was to where it now is, on the compositor.
 function placeJump() {
-  jump.style.top = headerH() + 6 + "px";
+  const to = (shut ? topH - moreH : topH) + 6, from = parseFloat(jump.style.top);
+  jump.style.top = to + "px";
+  if (MOTION && from && from !== to && !jump.hidden)
+    jump.animate([{transform: `translateY(${from - to}px)`}, {transform: "none"}],
+                 {duration: 350, easing: "cubic-bezier(.16,1,.3,1)"});
   jump.style.bottom = dockH ? dockH + 10 + "px" : "calc(10px + env(safe-area-inset-bottom))";
 }
 function jumpTo(l) {
@@ -767,7 +795,7 @@ function jumpTo(l) {
   const pos = firstAt.get(letters[i]);
   const listTop = list.getBoundingClientRect().top + scrollY;
   // Any jump lands far enough down that the header is collapsed to the logo row.
-  window.scrollTo(0, listTop + pos * ROW - bar.offsetHeight);
+  window.scrollTo(0, listTop + pos * ROW - barH);
   clearTimeout(bubbleTimer);
   bubble.textContent = l; bubble.hidden = false;
 }
