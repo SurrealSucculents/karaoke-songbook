@@ -222,9 +222,9 @@ def poster(c, url, name, wifi=None):
         qr(c, cx - size / 2, H - 56 * mm - size, size, url)
         fs = 23.5
         bw = block_width(c, items, fs)
-        feature_list(c, cx - bw / 2, H - 143 * mm, items, fs, 18.5 * mm)
-        url_line(c, url, 38 * mm, 19)
-        centred(c, "Or just come up and ask", 25 * mm, "Helvetica-Bold", 24, ACCENT)
+        feature_list(c, cx - bw / 2, H - 141 * mm, items, fs, 17.8 * mm)
+        url_line(c, url, 40 * mm, 19)
+        centred(c, "Or just come up and ask!", 23.5 * mm, "Helvetica-Bold", 34, ACCENT)
         centred(c, "Found your song? Show it to the host with your first name.", 12 * mm, "Helvetica", 11, FAINT)
         return
 
@@ -241,7 +241,7 @@ def poster(c, url, name, wifi=None):
     feature_list(c, x0, ftop, left, fs, 12 * mm, detail=False)
     feature_list(c, x0 + lw + gutter, ftop, right, fs, 12 * mm, detail=False)
     url_line(c, url, ftop - half * 12 * mm - 6 * mm, 17)
-    centred(c, "Or just come up and ask", ftop - half * 12 * mm - 17 * mm, "Helvetica-Bold", 20, ACCENT)
+    centred(c, "Or just come up and ask!", ftop - half * 12 * mm - 19 * mm, "Helvetica-Bold", 27, ACCENT)
 
     box_x, box_y, box_w, box_h = 22 * mm, 22 * mm, W - 44 * mm, 44 * mm
     c.setFillColor(BOX)
