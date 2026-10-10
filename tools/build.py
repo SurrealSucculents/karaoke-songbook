@@ -11,6 +11,9 @@ plain: the page loads it directly, and every command here reads and writes it.
     # (--reset first clears every song's type, including any from export titles)
     python3 tools/build.py voices
 
+    # Re-read tools/artist_ranges.json (voice types) into songbook.json
+    python3 tools/build.py ranges
+
     # Get the list out as plain songs, to check or hand-edit it
     python3 tools/build.py export --out songs.json
 
@@ -30,6 +33,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIST = os.path.join(ROOT, "songbook.json")
 VOICES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artist_voices.json")
 VOICE_CODES = {"m": 1, "f": 2, "d": 3}
+RANGES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artist_ranges.json")
+# Voice type of an act's lead singer, for "Fine tune my recommendations". 0 is unknown.
+RANGES = ["soprano", "mezzo", "alto", "tenor", "baritone", "bass"]
 
 GENRES = ["Pop", "Rock", "Indie & Alternative", "Dance", "R&B & Soul", "Hip-Hop & Rap",
           "Country", "Musicals & Film", "Christmas", "Swing & Easy Listening",
@@ -52,8 +58,11 @@ def pack(songs):
     """[{t, a, p, y, g, v}] -> compact JSON the page reads.
 
     v is the singer type: 0 unknown, 1 male, 2 female, 3 duet.
+    r has one digit per artist: their voice type from tools/artist_ranges.json,
+    1-6 in the order of RANGES, 0 unknown.
     """
     artists = sorted({s["p"] for s in songs}, key=lambda a: (artist_sort_key(a), a))
+    ranges = artist_ranges()
     index = {a: i for i, a in enumerate(artists)}
     rows = []
     for s in sorted(songs, key=lambda s: (sort_key(s["t"]), artist_sort_key(s["p"]))):
@@ -62,7 +71,8 @@ def pack(songs):
         if s["a"] != s["p"]:
             row.append(s["a"])
         rows.append(row)
-    return {"v": 2, "g": GENRES, "a": artists, "s": rows}
+    r = "".join(str(ranges.get(clean.key(a), 0)) for a in artists)
+    return {"v": 2, "g": GENRES, "a": artists, "r": r, "s": rows}
 
 
 def unpack(payload):
@@ -84,6 +94,14 @@ def artist_voices():
         return {}
     with open(VOICES, encoding="utf-8") as f:
         return {clean.key(a): VOICE_CODES[c] for a, c in json.load(f).items() if c in VOICE_CODES}
+
+
+def artist_ranges():
+    """Voice type per act (1-6, see RANGES), by clean.key of the act's name."""
+    if not os.path.exists(RANGES_FILE):
+        return {}
+    with open(RANGES_FILE, encoding="utf-8") as f:
+        return {clean.key(a): RANGES.index(r) + 1 for a, r in json.load(f).items() if r in RANGES}
 
 
 def save(songs):
@@ -126,6 +144,14 @@ def cmd_voices(args):
     save(songs)
 
 
+def cmd_ranges(args):
+    songs = load_list()
+    known = artist_ranges()
+    n = len({clean.key(s["p"]) for s in songs} & set(known))
+    print(f"{n} acts have a voice type from tools/artist_ranges.json")
+    save(songs)
+
+
 def cmd_update(args):
     by_artist = artist_voices()
     known = {}
@@ -153,6 +179,8 @@ def main():
     p.set_defaults(run=cmd_export)
     p = sub.add_parser("voices"); p.add_argument("--reset", action="store_true")
     p.set_defaults(run=cmd_voices)
+    p = sub.add_parser("ranges")
+    p.set_defaults(run=cmd_ranges)
     p = sub.add_parser("update")
     p.add_argument("--track"); p.add_argument("--artist")
     p.set_defaults(run=cmd_update)
