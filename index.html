@@ -16,7 +16,7 @@
   :root{
     --ground:#08040F; --riser:#150C24; --rail:#2A1B3F; --edge:#3D2A57; --lift:#20143A;
     --ink:#F2EEF7; --dim:#9B8FB0; --faint:#6E6383;
-    --part-a:#ED1F61; --part-b:#1FEAED; --live:#FFC53D;
+    --part-a:#ED1F61; --part-b:#1FEAED;
     --r:10px; --r-lg:16px; --gap:8px; --pad:16px; --tap:48px; --row:62px;
     --ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     --num:"SF Mono",ui-monospace,"Roboto Mono",Menlo,monospace;
@@ -36,7 +36,8 @@
   button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;
          transition:transform .16s var(--spring),background-color .2s,border-color .2s,color .2s,box-shadow .2s}
   button:active:not([disabled]){transform:scale(.96)}
-  button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--live);outline-offset:2px}
+  button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--part-a);outline-offset:2px}
+  .sheet:focus,.page:focus{outline:0}
   .wrap{max-width:640px;margin:0 auto}
 
   /* ---------- gate ---------- */
@@ -198,7 +199,7 @@
   .shared li{padding:9px 2px;border-bottom:1px solid var(--rail);font-weight:600;font-size:15px}
   .shared li span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
   .ask{background:linear-gradient(160deg,var(--lift),var(--riser));border:1px solid var(--edge);border-radius:var(--r);padding:14px 15px;
-       box-shadow:inset 3px 0 0 var(--live)}
+}
   .ask h3{margin:0 0 8px;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
   .ask p{margin:0 0 8px;font-size:14px;color:var(--dim)}
   .ask ol{margin:0;padding:0;list-style:none;display:grid;gap:6px}
@@ -213,7 +214,7 @@
   .cal ol{margin:0;padding:0;list-style:none;border-top:1px solid var(--rail)}
   .cal li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:11px 4px;
           border-bottom:1px solid var(--rail);font-size:15.5px;font-weight:600}
-  .cal li span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--live)}
+  .cal li span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--part-a)}
   .acts.stick{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));background:var(--riser);
                padding:10px 0 calc(18px + env(safe-area-inset-bottom));margin-bottom:calc(-18px - env(safe-area-inset-bottom))}
 
@@ -229,9 +230,9 @@
   .night{flex:0 0 auto;scroll-snap-align:start;padding:3px 10px;white-space:nowrap;font-size:13.5px;font-weight:700;
          border:1px solid var(--rail);border-radius:999px;background:var(--riser)}
   .night span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:5px}
-  .night.now{border-color:var(--live);box-shadow:inset 0 0 0 1px var(--live);animation:glow 2.6s ease-in-out infinite}
-  @keyframes glow{50%{box-shadow:inset 0 0 0 1px var(--live),0 0 16px rgba(255,197,61,.45)}}
-  .night.now span{color:var(--live)}
+  .night.now{border-color:var(--part-a);box-shadow:inset 0 0 0 1px var(--part-a);animation:glow 2.6s ease-in-out infinite}
+  @keyframes glow{50%{box-shadow:inset 0 0 0 1px var(--part-a),0 0 16px rgba(237,31,97,.45)}}
+  .night.now span{color:var(--part-a)}
   .toast{position:fixed;left:50%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#0B0616;
          font-weight:600;font-size:14px;padding:10px 16px;border-radius:999px;pointer-events:none;white-space:nowrap;
          box-shadow:0 10px 30px rgba(0,0,0,.5);animation:pop .35s var(--spring) both}
@@ -336,7 +337,7 @@
   <aside class="dock" id="dock" aria-label="Upcoming karaoke nights" hidden><div class="wrap" id="dockRow" role="list"></div></aside>
 </div>
 
-<section class="page" id="artistPage" hidden aria-labelledby="artistName">
+<section class="page" id="artistPage" hidden aria-labelledby="artistName" tabindex="-1">
   <div class="page-top">
     <div class="wrap">
       <button class="back" type="button" id="artistBack">‹ Back</button>
@@ -351,7 +352,7 @@
 <div class="toast" id="toast" role="status" hidden></div>
 
 <div class="scrim" id="scrim" hidden>
-  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1"></div>
 </div>
 
 <script>
@@ -759,7 +760,7 @@ function openSheet(html, wire, modal) {
   document.body.style.overflow = "hidden";
   history.pushState({v: "sheet"}, "");
   wire?.(sheet);
-  sheet.querySelector("button")?.focus({preventScroll: true});
+  sheet.focus({preventScroll: true});
 }
 function closeSheet(fromHistory) {
   if (!isOpen(scrim)) return;
@@ -1140,7 +1141,7 @@ function openArtist(a, replace) {
   page.scrollTop = 0;
   document.body.style.overflow = "hidden";
   replace ? history.replaceState({v: "artist"}, "") : history.pushState({v: "artist"}, "");
-  $("artistBack").focus({preventScroll: true});
+  page.focus({preventScroll: true});
 }
 function closeArtist() {
   leave(page, 240);
