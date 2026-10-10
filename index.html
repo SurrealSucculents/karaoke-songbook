@@ -298,7 +298,7 @@
         <button type="button" data-tab="artists" aria-pressed="false">Artists</button>
         <button type="button" data-tab="saved" aria-pressed="false"><span class="heart" aria-hidden="true">♥</span>Saved</button>
       </nav></div>
-      <div class="filters">
+      <div class="filters" id="filters">
         <button type="button" id="fGenre" aria-haspopup="dialog">Genre<span class="caret">▾</span></button>
         <button type="button" id="fDecade" aria-haspopup="dialog">Decade<span class="caret">▾</span></button>
         <button type="button" id="fVoice" aria-haspopup="dialog" hidden>Singer<span class="caret">▾</span></button>
@@ -510,9 +510,12 @@ function findSong(t, by) {
          SONGS.find(s => s.ft === fold(t) && (!by || s.fa === fold(by)));
 }
 
-function anyFilter() { return state.genres.size || state.decades.size || state.voices.size; }
+// The Saved tab has no filter row, so filters picked on Songs or Artists don't apply there
+// (they're kept for when the guest goes back).
+function anyFilter() { return state.tab !== "saved" && (state.genres.size || state.decades.size || state.voices.size); }
 
 function passes(s) {
+  if (state.tab === "saved") return true;
   if (state.genres.size && !state.genres.has(s.g)) return false;
   if (state.decades.size && !state.decades.has(s.dec)) return false;
   if (state.voices.size && !state.voices.has(s.v)) return false;
@@ -730,6 +733,7 @@ $("qx").onclick = () => { q.value = ""; state.q = ""; refresh(); q.focus(); };
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   state.tab = b.dataset.tab;
   $("tabs").dataset.on = state.tab;
+  $("filters").hidden = state.tab === "saved";
   document.querySelectorAll(".tabs button").forEach(x => {
     x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
   });
