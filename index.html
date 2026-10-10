@@ -79,8 +79,7 @@
   /* search lives in the filter row: a button that opens into a field */
   .filters .find{flex:0 0 42px;padding:0;display:grid;place-items:center;color:var(--ink)}
   .filters .find svg{width:18px;height:18px}
-  .filters.searching > button,.filters.saved > button:not(.find){display:none}
-  .filters.saved .find{margin-left:auto}
+  .filters.searching > button{display:none}
   .search{flex:1;position:relative;animation:open .3s var(--spring) both}
   @keyframes open{from{opacity:0;clip-path:inset(0 0 0 85% round 12px)}}
   .search input{font:inherit;width:100%;padding:9px 44px 9px 40px;min-height:42px;
@@ -761,12 +760,13 @@ q.addEventListener("blur", () => { if (!q.value.trim()) closeSearch(); });
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   state.tab = b.dataset.tab;
   $("tabs").dataset.on = state.tab;
-  filters.classList.toggle("saved", state.tab === "saved");
+  // The Saved tab is short enough to scan, so it has no filter or search row.
+  if (state.tab === "saved") closeSearch();
+  filters.hidden = state.tab === "saved";
   document.querySelectorAll(".tabs button").forEach(x => {
     x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
   });
-  q.placeholder = state.tab === "songs" ? "Search songs or artists"
-    : state.tab === "saved" ? "Search your favourites" : "Search artists";
+  q.placeholder = state.tab === "songs" ? "Search songs or artists" : "Search artists";
   refresh();
 });
 
