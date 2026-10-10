@@ -119,6 +119,7 @@ where there isn't one. Shared links open straight onto the song
 
 ## Favourites
 
+The Saved tab notes under the count that the list is saved in this browser.
 Tap the ♡ on any song row (or **Save** on the song itself) and it shows up under
 the **Saved** tab. Rows show the heart rather than the year; the year is on the
 song itself. Favourites are kept in the browser on that phone (`localStorage`),

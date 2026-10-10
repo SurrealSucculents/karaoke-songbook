@@ -70,26 +70,25 @@
   .msg.stop{background:#2B0D1B;color:#FFC2D4;box-shadow:inset 2px 0 0 var(--part-a)}
 
   /* ---------- top ---------- */
-  /* Scrolled down, the tabs, filters and count slide up behind the logo row and a chevron
-     under it brings them back. The header keeps its height in the page (it's just see-through
-     where they were), so the list underneath never jumps. Each layer paints its own full-width
-     background. */
+  /* The tabs, filters and count slide up behind the logo row as the guest scrolls down and
+     back down as they scroll up, following the finger. The header keeps its height in the page
+     (it's just see-through where they were), so the list underneath never jumps. Each layer
+     paints its own full-width background. */
   .top{position:sticky;top:0;z-index:5;pointer-events:none}
   .top .wrap > *{pointer-events:auto}
   .bar::before,.more::before{content:"";position:absolute;z-index:-1;top:0;bottom:0;left:calc(50% - 50vw);right:calc(50% - 50vw);
                              background:#0B0614}
   .bar{position:relative;z-index:2;display:flex;align-items:center;gap:10px;
-       padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid transparent;transition:border-color .2s}
-  .more{position:relative;z-index:1;transition:transform .4s var(--spring)}
-  .top.collapsed:not(.peek) .more{transform:translateY(-100%);pointer-events:none}
-  .top.collapsed:not(.peek) .bar{border-bottom-color:var(--rail)}
+       padding:calc(12px + env(safe-area-inset-top)) var(--pad) 10px;border-bottom:1px solid #0B0614;transition:border-color .2s}
+  .more{position:relative;z-index:1;will-change:transform}
+  .more.glide{transition:transform .35s var(--spring)}
+  .top.collapsed .more{pointer-events:none}
+  .top.collapsed .bar{border-bottom-color:var(--rail)}
   .chev{position:absolute;left:50%;top:100%;translate:-50% 0;width:58px;height:24px;padding:0;display:grid;place-items:center;
         color:var(--dim);background:#0B0614;border:1px solid var(--rail);border-top:0;border-radius:0 0 12px 12px;
         opacity:0;pointer-events:none;transition:opacity .2s,color .2s}
   .chev svg{width:18px;height:18px}
-  /* Once opened, the rows fold away again on scroll, so the chevron only shows while closed. */
-  .top.collapsed:not(.peek) .chev{opacity:1;pointer-events:auto}
-  .jump{transition:top .4s var(--spring)}
+  .top.collapsed .chev{opacity:1;pointer-events:auto}
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
   .share svg{width:16px;height:16px}
@@ -135,6 +134,8 @@
                         text-decoration:underline;text-underline-offset:3px}
   .eyebrow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
            padding:14px var(--pad) 6px;border-bottom:1px solid var(--rail);font-variant-numeric:tabular-nums}
+  .eyebrow .count{display:grid;gap:2px}
+  .eyebrow .note{font-size:12.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint)}
 
   /* ---------- list ---------- */
   .list{position:relative;margin:0 var(--pad)}
@@ -335,7 +336,8 @@
           <button class="x" id="qx" type="button" aria-label="Close search">×</button>
         </div>
       </div>
-      <div class="eyebrow"><span id="summary" aria-live="polite"></span>
+      <div class="eyebrow"><span class="count"><span id="summary" aria-live="polite"></span>
+        <span class="note" id="savedNote" hidden>Saved in this browser</span></span>
         <button class="quiet" type="button" id="favShare" hidden>Share my list</button></div>
       <button class="chev" id="chev" type="button" aria-label="Show tabs and filters" aria-controls="more"
               aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
@@ -621,6 +623,7 @@ function refresh(keepScroll) {
   if (state.q.trim()) summary += ` for “${state.q.trim()}”`;
   $("summary").textContent = summary;
   $("favShare").hidden = !saved || !FAVS.size;
+  $("savedNote").hidden = !saved || !FAVS.size;
   $("fClear").hidden = !filtered;
   label($("fGenre"), "Genre", [...state.genres].map(g => GENRES[g]));
   label($("fDecade"), "Decade", [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
@@ -691,28 +694,38 @@ function draw() {
 addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(draw); }, {passive: true});
 
 const top = $("top"), bar = top.querySelector(".bar"), more = $("more"), chev = $("chev");
-let collapsed = false, peek = false, peekY = 0;
-// What the header covers right now: just the logo row when collapsed.
-const headerH = () => collapsed && !peek ? bar.offsetHeight : top.offsetHeight;
-function paintHeader() {
-  top.classList.toggle("collapsed", collapsed);
-  top.classList.toggle("peek", peek);
-  chev.setAttribute("aria-expanded", peek);
+// hide: how many pixels of the tabs/filters/count are tucked behind the logo row.
+let hide = 0, lastY = 0, headerRaf = 0, snapTimer = 0;
+const headerH = () => top.offsetHeight - hide;
+function setHide(h, glide) {
+  hide = h;
+  more.classList.toggle("glide", !!glide);
+  more.style.transform = hide ? `translateY(${-hide}px)` : "";
+  const shut = hide > 0 && hide >= more.offsetHeight - 1;
+  top.classList.toggle("collapsed", shut);
+  chev.setAttribute("aria-expanded", !shut);
   placeJump();
 }
-// Collapse once the first song reaches the logo row (so nothing jumps or gaps), with a
-// little slack on the way back so it doesn't flicker at the edge. Opened with the chevron,
-// the rows fold away again after a further scroll down.
-function fitHeader() {
-  const h = more.offsetHeight;
-  const want = collapsed ? scrollY > h - 40 : scrollY >= h;
-  const wantPeek = want && peek && scrollY < peekY + 80;
-  if (want === collapsed && wantPeek === peek) return;
-  collapsed = want; peek = wantPeek;
-  paintHeader();
+// Moves with each scroll: down tucks the rows away, up brings them back at the finger's pace.
+// It never tucks away more than has been scrolled, so at the top of the page it's always fully
+// open and there's never a gap above the first song.
+function followScroll() {
+  headerRaf = 0;
+  const y = Math.max(0, scrollY), dy = y - lastY;
+  lastY = y;
+  const next = Math.min(more.offsetHeight, y, Math.max(0, hide + dy));
+  if (next !== hide) setHide(next);
+  clearTimeout(snapTimer);
+  snapTimer = setTimeout(settle, 180);
 }
-chev.onclick = () => { peek = true; peekY = scrollY; paintHeader(); };
-addEventListener("scroll", fitHeader, {passive: true});
+// Left part-way when the scrolling stops, it settles to whichever end is nearer.
+function settle() {
+  const h = more.offsetHeight;
+  if (hide <= 0 || hide >= h) return;
+  setHide(hide > h / 2 && scrollY >= h ? h : 0, true);
+}
+chev.onclick = () => setHide(0, true);
+addEventListener("scroll", () => { if (!headerRaf) headerRaf = requestAnimationFrame(followScroll); }, {passive: true});
 addEventListener("resize", () => { fitDock(); draw(); });
 
 /* ---------------------------------------------------------------- A–Z */
