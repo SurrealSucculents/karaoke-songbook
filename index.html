@@ -672,6 +672,7 @@ function compute() {
 
 const list = $("list"), jump = $("jump"), bubble = $("bubble");
 const ROW = 62;
+const OVERSCAN = 24;   // rows drawn beyond each edge of the screen
 let pool = new Map();   // position -> element
 let entering = false;   // rows drawn straight after a refresh fade in
 // Once a row has faded in, drop the class so it doesn't linger as its own layer.
@@ -741,8 +742,10 @@ function draw(listTop) {
   raf = 0;
   if ($("app").hidden) return;
   const top = listTop ?? list.getBoundingClientRect().top;
-  const first = Math.max(0, Math.floor(-top / ROW) - 8);
-  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + 8);
+  // Rows are kept ready well past each edge of the screen, so a fast flick on a phone (which
+  // scrolls ahead of this code) shows songs rather than an empty gap while it catches up.
+  const first = Math.max(0, Math.floor(-top / ROW) - OVERSCAN);
+  const last = Math.min(view.length, Math.ceil((innerHeight - top) / ROW) + OVERSCAN);
   for (const [pos, el] of pool) if (pos < first || pos >= last) { el.remove(); pool.delete(pos); }
   const frag = document.createDocumentFragment();
   let k = 0;
