@@ -37,13 +37,6 @@
   body::before{content:"";position:fixed;top:0;left:0;right:0;height:var(--glow-h,100vh);z-index:-1;pointer-events:none;
        background:radial-gradient(110% 55% at 15% -8%,var(--glow-a),transparent 62%),
                   radial-gradient(90% 50% at 100% 0,var(--glow-b),transparent 60%),var(--ground)}
-  /* Own-scroll mode (html.own-scroll, see the script): the songs scroll inside #songs, which fills
-     the screen, and the page itself never scrolls. The logo row, header and dates strip stay
-     outside it, fixed as ever: inside a scrolling box, fixed elements have to be moved back
-     against its scrolling on every frame. */
-  html.own-scroll,html.own-scroll body{height:100%;overflow:hidden}
-  html.own-scroll #songs{position:fixed;inset:0;max-width:none;overflow-y:auto;overscroll-behavior-y:contain;
-                         padding-inline:max(0px,calc((100% - 640px) / 2))}
   [hidden]{display:none!important}
   button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;
          transition:transform .16s var(--spring),background-color .2s,border-color .2s,color .2s,box-shadow .2s}
@@ -426,7 +419,7 @@
       </div>
     </div>
   </header>
-  <div class="wrap" id="songs">
+  <div class="wrap">
     <div class="list" id="list" role="list"></div>
     <div class="empty" id="empty" hidden>
       <b id="emptyHead">Nothing matches that</b>
@@ -484,18 +477,6 @@ const MOTION = !matchMedia("(prefers-reduced-motion: reduce)").matches;
 // The background glow is as tall as the window was when last measured (see body::before).
 const glowFits = () => { if (innerHeight) document.documentElement.style.setProperty("--glow-h", innerHeight + "px"); };
 glowFits();
-// Own-scroll mode: the songs scroll inside #songs rather than the page scrolling. Chrome on an iPhone
-// hides its toolbars by resizing the page while they slide, at every change of scroll direction,
-// which stutters however little the page does; it leaves them alone on a page that fits the screen.
-const ownScroll = document.documentElement.classList.contains("own-scroll");
-const scroller = ownScroll ? $("songs") : null;
-// What carries the room for the header above the songs and the dates strip below them.
-const padBox = scroller || $("app");
-const pageY = () => scroller ? scroller.scrollTop : scrollY;
-const scrollPage = y => scroller ? scroller.scrollTo(0, y) : window.scrollTo(0, y);
-const scrollPageBy = dy => scroller ? scroller.scrollBy(0, dy) : window.scrollBy(0, dy);
-// Stops the list scrolling under a sheet or the artist page.
-const lockScroll = on => { (scroller || document.body).style.overflow = on ? "hidden" : ""; };
 // Play an element's "leaving" animation, then hide it. Showing it again cancels that.
 const leaveTimers = new Map();
 function leave(el, ms) {
@@ -728,7 +709,7 @@ function refresh(keepScroll) {
   // Saving or unsaving resizes the pinned section; if the guest is scrolled past it, move the
   // page by the same amount so the songs they're looking at don't jump.
   const shift = (pinnedRows() - pinnedBefore) * ROW;
-  if (keepScroll && shift && list.getBoundingClientRect().top + pinnedBefore * ROW < (shut ? barH : topH)) scrollPageBy(shift);
+  if (keepScroll && shift && list.getBoundingClientRect().top + pinnedBefore * ROW < (shut ? barH : topH)) scrollBy(0, shift);
   const filtered = anyFilter();
   const forYou = state.tab === "foryou";
   const noun = forYou ? ["song picked for you", "songs picked for you"] : songMode() ? ["song", "songs"] : ["artist", "artists"];
@@ -754,7 +735,7 @@ function refresh(keepScroll) {
   list.style.height = view.length * ROW + "px";
   for (const el of pool.values()) { el.remove(); spare.push(el); }
   pool.clear();
-  if (!keepScroll) scrollPage(0);
+  if (!keepScroll) window.scrollTo(0, 0);
   entering = !keepScroll && MOTION;
   draw();
 }
@@ -847,7 +828,7 @@ function measureHeader() {
   const b = bar.offsetHeight;
   if (b !== barH) { barH = b; top.style.setProperty("--bar-h", b + "px"); }
   topH = top.offsetHeight; moreH = more.offsetHeight;
-  padBox.style.paddingTop = topH + 1 + "px";   // room for the fixed header and its hairline
+  $("app").style.paddingTop = topH + 1 + "px";   // room for the fixed header and its hairline
 }
 const headerSizes = new ResizeObserver(measureHeader);
 headerSizes.observe(top); headerSizes.observe(bar);
@@ -874,11 +855,11 @@ let frame = 0;
 function onFrame() {
   frame = 0;
   if ($("app").hidden) return;
-  const y = pageY(), listTop = list.getBoundingClientRect().top;
+  const y = scrollY, listTop = list.getBoundingClientRect().top;
   followScroll(y);
   draw(listTop);
 }
-(scroller || window).addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onFrame); }, {passive: true});
+addEventListener("scroll", () => { if (!frame) frame = requestAnimationFrame(onFrame); }, {passive: true});
 // Chrome on an iPhone resizes the page on every frame while its toolbars slide in or out, at each
 // change of scroll direction. Only a new width (the phone turned) needs the glow and the dates
 // strip fitting again; a new height only needs the rows checked, once a frame.
@@ -944,7 +925,7 @@ function openSheet(html, wire, modal) {
   // Already open (e.g. song card -> listen list): swap the content in place, one history entry.
   const swap = isOpen(scrim);
   reveal(scrim);
-  lockScroll(true);
+  document.body.style.overflow = "hidden";
   if (!swap) history.pushState({v: "sheet"}, "");
   wire?.(sheet);
   sheet.focus({preventScroll: true});
@@ -952,7 +933,7 @@ function openSheet(html, wire, modal) {
 function closeSheet(fromHistory) {
   if (!isOpen(scrim)) return;
   leave(scrim, 220);
-  lockScroll(false);
+  document.body.style.overflow = "";
   if (!fromHistory && history.state?.v === "sheet") history.back();
 }
 scrim.addEventListener("click", e => { if (e.target === scrim) closeSheet(); });
@@ -1051,7 +1032,7 @@ function songSheet(s, onArtistPage) {
       const a = el.querySelector('[data-act="artist"]');
       // The sheet's history entry becomes the artist page's, so Back goes to the list.
       if (a) a.onclick = () => {
-        clearTimeout(leaveTimers.get(scrim)); scrim.hidden = true; lockScroll(false);
+        clearTimeout(leaveTimers.get(scrim)); scrim.hidden = true; document.body.style.overflow = "";
         openArtist(s.artist, true);
       };
     }, true);
@@ -1334,7 +1315,7 @@ function buildDock() {
 // doesn't change while a toolbar slides in or out.
 function fitDock() {
   dockH = dock.hidden || $("app").hidden ? 0 : dock.offsetHeight;
-  padBox.style.paddingBottom = dockH ? `calc(${dockH}px + max(34px, env(safe-area-inset-bottom)))` : "";
+  $("app").style.paddingBottom = dockH ? `calc(${dockH}px + max(34px, env(safe-area-inset-bottom)))` : "";
 }
 // A page left open overnight drops last night's date.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("app").hidden) buildDock(); });
@@ -1367,7 +1348,7 @@ function datesSheet() {
 const page = $("artistPage");
 let pageScroll = 0;
 function openArtist(a, replace) {
-  pageScroll = pageY();
+  pageScroll = scrollY;
   const songs = a.songs.slice().sort((x, y) => x.i - y.i);
   const g = a.genre >= 0 ? ` · ${GENRES[a.genre]}` : "";
   $("artistName").textContent = a.name;
@@ -1390,14 +1371,14 @@ function openArtist(a, replace) {
   }
   reveal(page);
   page.scrollTop = 0;
-  lockScroll(true);
+  document.body.style.overflow = "hidden";
   replace ? history.replaceState({v: "artist"}, "") : history.pushState({v: "artist"}, "");
   page.focus({preventScroll: true});
 }
 function closeArtist() {
   leave(page, 240);
-  lockScroll(false);
-  scrollPage(pageScroll);
+  document.body.style.overflow = "";
+  window.scrollTo(0, pageScroll);
   draw();
 }
 $("artistBack").onclick = () => history.back();
