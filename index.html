@@ -123,12 +123,8 @@
   .share{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;
          border:1px solid var(--rail);border-radius:var(--r);background:transparent;font-size:14px;font-weight:600}
   .share svg{width:16px;height:16px}
-  /* search lives in the filter row: a button that opens into a field */
-  .filters .find{flex:0 0 42px;padding:0;display:grid;place-items:center;color:var(--ink)}
-  .filters .find svg{width:18px;height:18px}
-  .filters.searching > button{display:none}
-  .search{flex:1;position:relative;animation:open .3s var(--spring) both}
-  @keyframes open{from{opacity:0;clip-path:inset(0 0 0 85% round 12px)}}
+  /* the filter row: a search bar, and a Filters button that drops down Genre, Decade and Singer */
+  .search{flex:1;min-width:0;position:relative}
   .search input{font:inherit;width:100%;padding:9px 44px 9px 40px;min-height:42px;
                 border-radius:12px;border:1px solid var(--edge);background:var(--riser);color:var(--ink);
                 -webkit-appearance:none;appearance:none;transition:border-color .2s,box-shadow .25s}
@@ -151,18 +147,33 @@
   .tabs button{position:relative;flex:1;font-weight:600;font-size:14px;padding:8px 6px;min-height:38px;border:0;
                background:none;color:var(--dim);white-space:nowrap}
   .tabs button.on{color:var(--ink)}
-  .filters button{flex:1;font-weight:600;font-size:14px;padding:9px 6px;min-height:42px;
-             border:1px solid var(--rail);border-radius:var(--r);background:transparent;color:var(--dim);
-             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .filters button.on{background:rgba(237,31,97,.12);border-color:rgba(237,31,97,.55);color:var(--ink)}
   .tabs .heart{color:var(--part-a);margin-right:4px;display:inline-block}
   .tabs button.on .heart{animation:beat .5s var(--spring)}
   .eyebrow .quiet{margin-left:auto;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;min-height:0;padding:0}
   .filters{display:flex;gap:var(--gap);padding:8px var(--pad) 0}
-  .filters button{font-weight:500}
-  .filters button .caret{color:var(--faint);margin-left:4px}
-  .filters button.clear{flex:0 0 auto;padding:9px 14px;border-color:transparent;color:var(--dim);
-                        text-decoration:underline;text-underline-offset:3px}
+  .drop{flex:0 0 auto;position:relative}
+  .fbtn{display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 12px;font-size:14px;font-weight:600;
+        border:1px solid var(--edge);border-radius:12px;background:var(--riser);color:var(--ink);white-space:nowrap}
+  .fbtn svg{width:16px;height:16px;color:var(--dim)}
+  .fbtn .caret{color:var(--faint);transition:rotate .25s var(--spring)}
+  .fbtn[aria-expanded="true"] .caret{rotate:180deg}
+  .fbtn.on{background:rgba(237,31,97,.12);border-color:rgba(237,31,97,.55)}
+  .fbtn.on svg{color:var(--part-a)}
+  .fbtn .badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--part-a);color:#fff;
+               font-size:11.5px;font-weight:700;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+  .menu{position:absolute;top:calc(100% + 6px);right:0;z-index:2;width:270px;max-width:calc(100vw - 2 * var(--pad));
+        padding:6px;border:1px solid var(--edge);border-radius:var(--r-lg);background:var(--riser);
+        box-shadow:0 18px 50px rgba(0,0,0,.6);transform-origin:top right;animation:drop .22s var(--spring) both}
+  @keyframes drop{from{opacity:0;scale:.95;translate:0 -6px}}
+  .menu .opt{position:relative;display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 10px;border:0;
+             border-radius:var(--r);background:none;color:var(--ink);font-size:15px;font-weight:600;text-align:left}
+  .menu .opt + .opt::before{content:"";position:absolute;left:10px;right:10px;top:0;height:1px;background:var(--rail)}
+  .menu .opt span{flex:1}
+  .menu .opt b{max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:var(--faint)}
+  .menu .opt.on b{color:var(--part-a);font-weight:600}
+  .menu .opt i{font-style:normal;color:var(--faint);font-size:17px}
+  @media (hover:hover) and (pointer:fine){.menu .opt:hover{background:var(--lift)}}
+  .menu .quiet{display:block;margin:2px auto 0;min-height:40px;padding:0 10px}
   .eyebrow{display:flex;align-items:center;gap:10px;min-height:44px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
            padding:14px var(--pad) 6px;font-variant-numeric:tabular-nums}
   .eyebrow .count{display:grid;gap:2px}
@@ -394,19 +405,24 @@
         <button type="button" data-tab="foryou" aria-pressed="false"><span class="heart" aria-hidden="true">✦</span>For you</button>
       </nav></div>
       <div class="filters" id="filters">
-        <button type="button" id="fGenre" aria-haspopup="dialog">Genre<span class="caret">▾</span></button>
-        <button type="button" id="fDecade" aria-haspopup="dialog">Decade<span class="caret">▾</span></button>
-        <button type="button" id="fVoice" aria-haspopup="dialog" hidden>Singer<span class="caret">▾</span></button>
-        <button type="button" class="clear" id="fClear" hidden>Clear</button>
-        <button type="button" class="find" id="find" aria-label="Search"><svg viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path
-          d="m20 20-3.5-3.5"/></svg></button>
-        <div class="search" id="searchBox" hidden>
+        <div class="search">
           <input id="q" type="search" placeholder="Search songs or artists" autocomplete="off" autocorrect="off"
                  autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search songs or artists">
           <svg class="glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <button class="x" id="qx" type="button" aria-label="Close search">×</button>
+          <button class="x" id="qx" type="button" aria-label="Clear search" hidden>×</button>
+        </div>
+        <div class="drop" id="drop">
+          <button type="button" class="fbtn" id="fMenu" aria-haspopup="true" aria-expanded="false" aria-controls="fPanel"><svg
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path
+            d="M4 6h16M7 12h10M10 18h4"/></svg>Filters<span class="badge" id="fCount" hidden></span><span class="caret"
+            aria-hidden="true">▾</span></button>
+          <div class="menu" id="fPanel" hidden>
+            <button type="button" class="opt" id="fGenre" aria-haspopup="dialog"><span>Genre</span><b></b><i aria-hidden="true">›</i></button>
+            <button type="button" class="opt" id="fDecade" aria-haspopup="dialog"><span>Decade</span><b></b><i aria-hidden="true">›</i></button>
+            <button type="button" class="opt" id="fVoice" aria-haspopup="dialog" hidden><span>Singer</span><b></b><i aria-hidden="true">›</i></button>
+            <button type="button" class="quiet" id="fClear" hidden>Clear all filters</button>
+          </div>
         </div>
       </div>
       <div class="eyebrow"><span class="count"><span id="summary" aria-live="polite"></span>
@@ -720,9 +736,13 @@ function refresh(keepScroll) {
   $("favShare").hidden = state.tab !== "songs" || !FAVS.size || !!state.q.trim();
   $("recsMore").hidden = !forYou || !view.length;
   $("fClear").hidden = !filtered;
-  label($("fGenre"), "Genre", [...state.genres].map(g => GENRES[g]));
-  label($("fDecade"), "Decade", [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
-  label($("fVoice"), "Singer", [...VOICES.keys()].filter(v => state.voices.has(v)).map(v => VOICES[v]));
+  const picked = state.genres.size + state.decades.size + state.voices.size;
+  $("fMenu").classList.toggle("on", !!filtered);
+  $("fCount").hidden = !filtered;
+  $("fCount").textContent = picked;
+  label($("fGenre"), [...state.genres].map(g => GENRES[g]));
+  label($("fDecade"), [...DECADES.keys()].filter(d => state.decades.has(d)).map(d => DECADES[d].label));
+  label($("fVoice"), [...VOICES.keys()].filter(v => state.voices.has(v)).map(v => VOICES[v]));
   $("empty").hidden = view.length > 0;
   const none = forYou && !FAVS.size;
   $("emptyHead").textContent = none ? "Nothing to go on yet" : "Nothing matches that";
@@ -740,9 +760,9 @@ function refresh(keepScroll) {
   draw();
 }
 
-function label(btn, name, picked) {
+function label(btn, picked) {
   btn.classList.toggle("on", picked.length > 0);
-  btn.firstChild.textContent = picked.length === 0 ? name
+  btn.querySelector("b").textContent = picked.length === 0 ? "Any"
     : picked.length === 1 ? picked[0] : `${picked[0]} +${picked.length - 1}`;
 }
 
@@ -835,6 +855,7 @@ headerSizes.observe(top); headerSizes.observe(bar);
 function setShut(s) {
   if (s === shut) return;
   shut = s;
+  if (s) closeMenu();
   top.classList.toggle("collapsed", s);
   chev.setAttribute("aria-expanded", !s);
 }
@@ -874,37 +895,50 @@ addEventListener("resize", () => {
 const q = $("q");
 let typing = 0;
 q.addEventListener("input", () => {
+  $("qx").hidden = !q.value;
   clearTimeout(typing);
   typing = setTimeout(() => { state.q = q.value; refresh(); }, 90);
 });
 q.addEventListener("keydown", e => {
   if (e.key === "Enter") q.blur();
-  if (e.key === "Escape") { e.stopPropagation(); closeSearch(); }
+  if (e.key === "Escape") { e.stopPropagation(); clearSearch(); q.blur(); }
 });
-const filters = $("filters"), searchBox = $("searchBox");
-function openSearch() {
-  filters.classList.add("searching");
-  searchBox.hidden = false;
-  q.focus();
-}
-// Closing clears the search too, so a hidden query never narrows the list.
-function closeSearch() {
-  filters.classList.remove("searching");
-  searchBox.hidden = true;
+const filters = $("filters");
+function clearSearch() {
   clearTimeout(typing);
+  $("qx").hidden = true;
   if (q.value || state.q) { q.value = ""; state.q = ""; refresh(); }
 }
-$("find").onclick = openSearch;
-$("qx").onmousedown = e => e.preventDefault();   // keep the tap from blurring first
-$("qx").onclick = closeSearch;
-// Tapping away from an empty search folds it back into the button.
-q.addEventListener("blur", () => { if (!q.value.trim()) closeSearch(); });
+$("qx").onmousedown = e => e.preventDefault();   // keep the keyboard up
+$("qx").onclick = () => { clearSearch(); q.focus(); };
+
+// The Filters dropdown: each line opens that filter's picker.
+const fMenu = $("fMenu"), fPanel = $("fPanel");
+function closeMenu() {
+  if (fPanel.hidden) return;
+  fPanel.hidden = true;
+  fMenu.setAttribute("aria-expanded", false);
+}
+fMenu.onclick = () => {
+  if (!fPanel.hidden) return closeMenu();
+  fPanel.hidden = false;
+  fMenu.setAttribute("aria-expanded", true);
+};
+// A tap anywhere outside the dropdown shuts it, and does only that: it doesn't also open the
+// song underneath.
+let swallow = false;
+document.addEventListener("pointerdown", e => {
+  swallow = !fPanel.hidden && !e.target.closest("#drop");
+  if (swallow) closeMenu();
+}, true);
+document.addEventListener("click", e => { if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); } }, true);
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   state.tab = b.dataset.tab;
   $("tabs").dataset.on = state.tab;
   // The Saved tab is short enough to scan, so it has no filter or search row.
-  if (state.tab === "foryou") closeSearch();
+  if (state.tab === "foryou") clearSearch();
+  closeMenu();
   filters.hidden = state.tab === "foryou";
   document.querySelectorAll(".tabs button").forEach(x => {
     x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b);
@@ -913,8 +947,8 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   refresh();
 });
 
-$("fClear").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); refresh(); };
-$("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); closeSearch(); refresh(); };
+$("fClear").onclick = () => { closeMenu(); state.genres.clear(); state.decades.clear(); state.voices.clear(); refresh(); };
+$("emptyReset").onclick = () => { state.genres.clear(); state.decades.clear(); state.voices.clear(); clearSearch(); refresh(); };
 
 /* ---------------------------------------------------------------- sheets */
 
@@ -938,7 +972,7 @@ function closeSheet(fromHistory) {
 }
 scrim.addEventListener("click", e => { if (e.target === scrim) closeSheet(); });
 $("sheetClose").onclick = () => closeSheet();
-addEventListener("keydown", e => { if (e.key === "Escape") { if (isOpen(request)) closeRequest(); else if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
+addEventListener("keydown", e => { if (e.key === "Escape") { if (!fPanel.hidden) { closeMenu(); fMenu.focus(); } else if (isOpen(request)) closeRequest(); else if (isOpen(scrim)) closeSheet(); else if (isOpen($("artistPage"))) history.back(); } });
 
 function countBy(fn, size) {
   const c = new Array(size).fill(0);
@@ -997,9 +1031,9 @@ function pickerSheet(kind) {
     preview();
   });
 }
-$("fGenre").onclick = () => pickerSheet("genre");
-$("fDecade").onclick = () => pickerSheet("decade");
-$("fVoice").onclick = () => pickerSheet("voice");
+$("fGenre").onclick = () => { closeMenu(); pickerSheet("genre"); };
+$("fDecade").onclick = () => { closeMenu(); pickerSheet("decade"); };
+$("fVoice").onclick = () => { closeMenu(); pickerSheet("voice"); };
 
 function songSheet(s, onArtistPage) {
   const facts = [s.y, s.g >= 0 ? GENRES[s.g] : "", s.v >= 0 ? VOICES[s.v] : ""].filter(Boolean);
